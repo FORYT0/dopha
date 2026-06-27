@@ -139,19 +139,24 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
       if (pendingWrites.current > 0) return;
 
       if (!snap.exists()) {
-        // Seed Firestore on first run — mark as pending so echo is ignored
+        // No Firestore doc yet — seed with current state (preserves localStorage edits)
         pendingWrites.current += 1;
-        await setDoc(catalogRef, { products: baseProducts })
+        await setDoc(catalogRef, { products: productsRef.current })
           .catch(console.error)
           .finally(() => setTimeout(() => { pendingWrites.current = Math.max(0, pendingWrites.current - 1); }, 3000));
         return;
       }
 
-      // Another device wrote — accept and apply
-      const data = snap.data().products as EditableProduct[];
-      productsRef.current = data;
-      setProducts(data);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+      // Another device wrote — accept only if newer than what we have locally.
+      // We compare by stringifying; if identical, skip the re-render.
+      const incoming = snap.data().products as EditableProduct[];
+      const currentJSON = JSON.stringify(productsRef.current);
+      const incomingJSON = JSON.stringify(incoming);
+      if (incomingJSON === currentJSON) return;
+
+      productsRef.current = incoming;
+      setProducts(incoming);
+      try { localStorage.setItem(STORAGE_KEY, incomingJSON); } catch {}
     });
 
     const footerDocRef = doc(db, 'dopha', 'footer');
