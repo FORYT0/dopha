@@ -23,7 +23,7 @@ const ICONS = [
   'MapPin','Car','Shield','Calculator','Lightbulb','Box','ArrowUp','CircleDot',
 ];
 
-const TAB = ({ id, active, onClick, children }: { id: string; active: boolean; onClick: () => void; children: React.ReactNode }) => (
+const TAB = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
   <button
     onClick={onClick}
     className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${active ? 'bg-[var(--teal)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--charcoal)] hover:bg-[var(--light-gray)]'}`}
@@ -112,10 +112,10 @@ export default function ProductEditModal({ product, onClose }: Props) {
 
         {/* Tabs */}
         <div className="px-6 py-3 border-b border-[var(--medium-gray)] flex gap-2 shrink-0 bg-[var(--light-gray)]">
-          <TAB id="info" active={tab === 'info'} onClick={() => setTab('info')}><Info size={13} className="inline mr-1.5" />Info</TAB>
-          <TAB id="pricing" active={tab === 'pricing'} onClick={() => setTab('pricing')}><DollarSign size={13} className="inline mr-1.5" />Pricing</TAB>
-          <TAB id="image" active={tab === 'image'} onClick={() => setTab('image')}><Image size={13} className="inline mr-1.5" />Photo</TAB>
-          <TAB id="icon" active={tab === 'icon'} onClick={() => setTab('icon')}><Tag size={13} className="inline mr-1.5" />Icon</TAB>
+          <TAB active={tab === 'info'} onClick={() => setTab('info')}><Info size={13} className="inline mr-1.5" />Info</TAB>
+          <TAB active={tab === 'pricing'} onClick={() => setTab('pricing')}><DollarSign size={13} className="inline mr-1.5" />Pricing</TAB>
+          <TAB active={tab === 'image'} onClick={() => setTab('image')}><Image size={13} className="inline mr-1.5" />Photo</TAB>
+          <TAB active={tab === 'icon'} onClick={() => setTab('icon')}><Tag size={13} className="inline mr-1.5" />Icon</TAB>
         </div>
 
         {/* Body */}

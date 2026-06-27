@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, LogOut, Plus, RotateCcw, Eye } from 'lucide-react';
+import { ShieldCheck, LogOut, Plus, RotateCcw } from 'lucide-react';
 import { useStaff } from '../context/StaffContext';
 import AddProductModal from './AddProductModal';
 
