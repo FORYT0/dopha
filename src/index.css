@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --primary: 174 84% 29%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 240 10% 15%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 174 84% 29%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 174 84% 29%;
+    --radius: 0.75rem;
+
+    --teal: #0d9488;
+    --teal-dark: #0f766e;
+    --teal-light: #e6fffa;
+    --amber: #f59e0b;
+    --amber-light: #fffbeb;
+    --charcoal: #1a1a2e;
+    --white: #ffffff;
+    --light-gray: #f8f9fa;
+    --medium-gray: #e5e7eb;
+    --text-muted: #6b7280;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  code, .font-mono {
+    font-family: 'Source Code Pro', monospace;
+  }
+}
+
+@layer utilities {
+  .text-teal {
+    color: var(--teal);
+  }
+  .bg-teal {
+    background-color: var(--teal);
+  }
+  .bg-teal-light {
+    background-color: var(--teal-light);
+  }
+  .text-amber {
+    color: var(--amber);
+  }
+  .bg-amber-light {
+    background-color: var(--amber-light);
+  }
+  .bg-light-gray {
+    background-color: var(--light-gray);
+  }
+  .bg-medium-gray {
+    background-color: var(--medium-gray);
+  }
+  .border-medium-gray {
+    border-color: var(--medium-gray);
+  }
+  .text-charcoal {
+    color: var(--charcoal);
+  }
+  .bg-charcoal {
+    background-color: var(--charcoal);
+  }
+}
