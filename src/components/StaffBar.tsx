@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ShieldCheck, LogOut, Plus, RotateCcw } from 'lucide-react';
+import { ShieldCheck, LogOut, Plus, RotateCcw, EyeOff, Eye } from 'lucide-react';
 import { useStaff } from '../context/StaffContext';
 import AddProductModal from './AddProductModal';
 
 export default function StaffBar() {
-  const { logout, resetProducts } = useStaff();
+  const { logout, resetProducts, hidePrices, toggleHidePrices } = useStaff();
   const [showAdd, setShowAdd] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
@@ -37,6 +37,20 @@ export default function StaffBar() {
             >
               <Plus size={12} /> Add Product
             </button>
+            {/* Hide/Show Prices toggle */}
+            <button
+              onClick={toggleHidePrices}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors border ${
+                hidePrices
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
+                  : 'border-white/20 hover:bg-white/10 text-white/70 hover:text-white'
+              }`}
+              title={hidePrices ? 'Prices hidden — click to show' : 'Hide all prices'}
+            >
+              {hidePrices ? <EyeOff size={12} /> : <Eye size={12} />}
+              <span className="hidden sm:inline">{hidePrices ? 'Prices Hidden' : 'Hide Prices'}</span>
+            </button>
+
             <button
               onClick={handleReset}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors ${showConfirmReset ? 'bg-red-500 hover:bg-red-600 text-white' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}

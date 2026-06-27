@@ -43,7 +43,7 @@ export default function Navbar({ onSearch }: NavbarProps) {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 bg-white border-b border-[var(--medium-gray)] transition-shadow duration-300 ${scrolled ? 'shadow-md' : ''}`}>
+      <nav className={`fixed left-0 right-0 z-50 bg-white border-b border-[var(--medium-gray)] transition-all duration-300 ${isStaff ? 'top-9' : 'top-0'} ${scrolled ? 'shadow-md' : ''}`}>
         <div className="max-w-[1280px] mx-auto px-[5%] h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 no-underline">
             <div className="w-10 h-10 bg-[var(--teal)] rounded-xl flex items-center justify-center text-white">

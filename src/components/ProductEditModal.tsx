@@ -67,7 +67,7 @@ export default function ProductEditModal({ product, onClose }: Props) {
       category: form.category,
       subcategory: form.subcategory.trim() || undefined,
       price: Number(form.price),
-      oldPrice: form.oldPrice ? Number(form.oldPrice) : undefined,
+      oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
       badge: (form.badge || null) as 'sale' | 'tum' | null,
       stock: Number(form.stock),
       icon: form.icon,

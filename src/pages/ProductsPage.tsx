@@ -70,7 +70,7 @@ export default function ProductsPage() {
     }
 
     return result;
-  }, [searchQuery, selectedCategories, selectedBadges, priceRange, sortBy]);
+  }, [products, searchQuery, selectedCategories, selectedBadges, priceRange, sortBy]);
 
   const activeFilterCount = selectedCategories.length + selectedBadges.length + (priceRange.min || priceRange.max ? 1 : 0);
 

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  GraduationCap, Microchip, Zap, Activity, Thermometer, Battery,
+  Microchip, Zap, Activity, Thermometer, Battery,
   Wrench, Cable, Monitor, Wifi, Cog, ChevronRight, BookOpen, FileText,
   Users, Percent, Presentation, Truck, Lightbulb
 } from 'lucide-react';
 import SectionHeader from '../components/SectionHeader';
 import ProductCard from '../components/ProductCard';
-import { products, categories } from '../data/products';
+import { categories } from '../data/products';
+import { useStaff } from '../context/StaffContext';
 
 const categoryIcons: Record<string, React.ReactNode> = {
   Cpu: <Microchip size={24} />, Zap: <Zap size={24} />, Activity: <Activity size={24} />,
@@ -106,6 +107,7 @@ function ScrollReveal({ children, className = '' }: { children: React.ReactNode;
 }
 
 export default function Home() {
+  const { products } = useStaff();
   const [activeTab, setActiveTab] = useState('all');
   const filteredProducts = activeTab === 'all'
     ? products.slice(0, 12)
@@ -118,10 +120,6 @@ export default function Home() {
         <div className="max-w-[1280px] mx-auto px-[5%] w-full py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 bg-[var(--teal-light)] border border-[var(--teal)]/20 rounded-full px-4 py-2 text-sm text-[var(--teal)] font-medium mb-6">
-                <GraduationCap size={16} />
-                Official Partner — Technical University of Mombasa
-              </div>
               <h1 className="text-4xl md:text-5xl lg:text-[56px] font-black text-[var(--charcoal)] leading-tight mb-5">
                 Powering the Next Generation of{' '}
                 <span className="text-[var(--teal)]">Engineers</span>

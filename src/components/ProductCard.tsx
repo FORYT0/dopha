@@ -34,7 +34,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
-  const { isStaff, deleteProduct } = useStaff();
+  const { isStaff, deleteProduct, hidePrices } = useStaff();
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -127,13 +127,17 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-extrabold text-[var(--teal)]">
-                KSh {product.price.toLocaleString()}
-              </span>
-              {product.oldPrice && (
-                <span className="text-sm text-[var(--text-muted)] line-through">
-                  KSh {product.oldPrice.toLocaleString()}
-                </span>
+              {hidePrices ? null : (
+                <>
+                  <span className="text-lg font-extrabold text-[var(--teal)]">
+                    KSh {product.price.toLocaleString()}
+                  </span>
+                  {product.oldPrice && (
+                    <span className="text-sm text-[var(--text-muted)] line-through">
+                      KSh {product.oldPrice.toLocaleString()}
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <button
