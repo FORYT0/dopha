@@ -1,18 +1,23 @@
 import { Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
+import { StaffProvider } from './context/StaffContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import CartSidebar from './components/CartSidebar'
 import Toast from './components/Toast'
+import StaffBar from './components/StaffBar'
 import Home from './pages/Home'
 import ProductsPage from './pages/ProductsPage'
 import ProjectLabPage from './pages/ProjectLabPage'
 import AboutPage from './pages/AboutPage'
+import { useStaff } from './context/StaffContext'
 
-export default function App() {
+function AppShell() {
+  const { isStaff } = useStaff();
   return (
-    <CartProvider>
-      <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
+      {isStaff && <StaffBar />}
+      <div className={isStaff ? 'pt-9' : ''}>
         <Navbar />
         <CartSidebar />
         <Toast />
@@ -26,6 +31,16 @@ export default function App() {
         </main>
         <Footer />
       </div>
-    </CartProvider>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <StaffProvider>
+      <CartProvider>
+        <AppShell />
+      </CartProvider>
+    </StaffProvider>
   )
 }

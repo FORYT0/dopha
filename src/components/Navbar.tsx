@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Microchip, ShoppingCart, Search, Menu, X } from 'lucide-react';
+import { Microchip, ShoppingCart, Search, Menu, X, ShieldCheck, LogOut } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useStaff } from '../context/StaffContext';
+import StaffLoginModal from './StaffLoginModal';
 
 interface NavbarProps {
   onSearch?: (query: string) => void;
@@ -11,7 +13,9 @@ export default function Navbar({ onSearch }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showStaffLogin, setShowStaffLogin] = useState(false);
   const { totalItems, setIsOpen } = useCart();
+  const { isStaff, logout } = useStaff();
   const location = useLocation();
 
   useEffect(() => {
@@ -87,6 +91,27 @@ export default function Navbar({ onSearch }: NavbarProps) {
                 </span>
               )}
             </button>
+            {/* Staff button — always visible */}
+            {isStaff ? (
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--charcoal)] text-white text-xs font-semibold hover:bg-black transition-colors"
+                title="Exit staff mode"
+              >
+                <LogOut size={13} />
+                <span className="hidden sm:inline">Exit Staff</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowStaffLogin(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--medium-gray)] text-[var(--text-muted)] text-xs font-semibold hover:border-[var(--teal)] hover:text-[var(--teal)] transition-colors"
+                title="Staff login"
+              >
+                <ShieldCheck size={13} />
+                <span className="hidden sm:inline">Staff Login</span>
+              </button>
+            )}
+
             <button
               className="md:hidden p-2 text-[var(--charcoal)]"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -96,6 +121,8 @@ export default function Navbar({ onSearch }: NavbarProps) {
           </div>
         </div>
       </nav>
+
+      {showStaffLogin && <StaffLoginModal onClose={() => setShowStaffLogin(false)} />}
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-white pt-16 px-6 md:hidden">
@@ -119,6 +146,24 @@ export default function Navbar({ onSearch }: NavbarProps) {
                 {link.label}
               </Link>
             ))}
+            {/* Staff login in mobile menu */}
+            <div className="pt-2">
+              {isStaff ? (
+                <button
+                  onClick={() => { logout(); setMobileOpen(false); }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--charcoal)] text-white font-semibold text-sm"
+                >
+                  <LogOut size={16} /> Exit Staff Mode
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setShowStaffLogin(true); setMobileOpen(false); }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-[var(--medium-gray)] text-[var(--charcoal)] font-semibold text-sm hover:border-[var(--teal)] hover:text-[var(--teal)] transition-colors"
+                >
+                  <ShieldCheck size={16} /> Staff Login
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

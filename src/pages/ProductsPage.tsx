@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import { products, categories } from '../data/products';
+import { categories } from '../data/products';
+import { useStaff } from '../context/StaffContext';
 import ProductCard from '../components/ProductCard';
 
 const sortOptions = [
@@ -12,6 +13,7 @@ const sortOptions = [
 ];
 
 export default function ProductsPage() {
+  const { products } = useStaff();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || '';
 
@@ -81,7 +83,7 @@ export default function ProductsPage() {
             <span className="hover:text-[var(--teal)] cursor-pointer">Home</span> <span className="mx-2">/</span> <span className="text-[var(--charcoal)]">Products</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--charcoal)] mb-2">All Components</h1>
-          <p className="text-[var(--text-muted)]">Browse our complete catalog of {products.length}+ electronic components</p>
+          <p className="text-[var(--text-muted)]">Browse our complete catalog of {products.length} electronic components</p>
         </div>
       </div>
 
