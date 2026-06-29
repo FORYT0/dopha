@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import SectionHeader from '../components/SectionHeader';
 import ProductCard from '../components/ProductCard';
+import InlineEdit from '../components/InlineEdit';
 import { categories } from '../data/products';
 import { useStaff } from '../context/StaffContext';
 
@@ -107,7 +108,7 @@ function ScrollReveal({ children, className = '' }: { children: React.ReactNode;
 }
 
 export default function Home() {
-  const { products } = useStaff();
+  const { products, siteContent, updateContent } = useStaff();
   const [activeTab, setActiveTab] = useState('all');
   const filteredProducts = activeTab === 'all'
     ? products.slice(0, 12)
@@ -121,11 +122,24 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative z-10">
               <h1 className="text-4xl md:text-5xl lg:text-[56px] font-black text-[var(--charcoal)] leading-tight mb-5">
-                Powering the Next Generation of{' '}
-                <span className="text-[var(--teal)]">Engineers</span>
+                <InlineEdit
+                  value={siteContent.heroTitle}
+                  onSave={v => updateContent({ heroTitle: v })}
+                  className="text-[var(--charcoal)]"
+                />{' '}
+                <InlineEdit
+                  value={siteContent.heroHighlight}
+                  onSave={v => updateContent({ heroHighlight: v })}
+                  className="text-[var(--teal)]"
+                />
               </h1>
               <p className="text-lg text-[var(--text-muted)] max-w-lg mb-8 leading-relaxed">
-                Premium electronic components, Arduino kits, sensors, and tools for TUM students and engineering enthusiasts across East Africa. Quality you can trust, prices you can afford.
+                <InlineEdit
+                  value={siteContent.heroSubtitle}
+                  onSave={v => updateContent({ heroSubtitle: v })}
+                  multiline
+                  className="text-[var(--text-muted)]"
+                />
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
@@ -133,14 +147,22 @@ export default function Home() {
                   className="inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--teal)] hover:bg-[var(--teal-dark)] text-white font-semibold rounded-xl transition-colors shadow-lg shadow-[var(--teal)]/20"
                 >
                   <Microchip size={18} />
-                  Browse Components
+                  <InlineEdit
+                    value={siteContent.heroCta1}
+                    onSave={v => updateContent({ heroCta1: v })}
+                    className="text-white"
+                  />
                 </Link>
                 <Link
                   to="/project-lab"
                   className="inline-flex items-center gap-2.5 px-7 py-3.5 border border-[var(--medium-gray)] text-[var(--charcoal)] font-semibold rounded-xl hover:border-[var(--teal)] hover:bg-[var(--teal-light)] transition-all"
                 >
                   <Lightbulb size={18} />
-                  Project Lab
+                  <InlineEdit
+                    value={siteContent.heroCta2}
+                    onSave={v => updateContent({ heroCta2: v })}
+                    className="text-[var(--charcoal)]"
+                  />
                 </Link>
               </div>
             </div>
@@ -327,10 +349,19 @@ export default function Home() {
         <div className="max-w-[1280px] mx-auto px-[5%] text-center">
           <ScrollReveal>
             <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--charcoal)] mb-4">
-              Ready to Build Something Amazing?
+              <InlineEdit
+                value={siteContent.ctaTitle}
+                onSave={v => updateContent({ ctaTitle: v })}
+                className="text-[var(--charcoal)]"
+              />
             </h2>
             <p className="text-lg text-[var(--text-muted)] max-w-xl mx-auto mb-8">
-              Join thousands of TUM students and engineering professionals who trust Dopha Electronics for their projects.
+              <InlineEdit
+                value={siteContent.ctaSubtitle}
+                onSave={v => updateContent({ ctaSubtitle: v })}
+                multiline
+                className="text-[var(--text-muted)]"
+              />
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Link
@@ -340,12 +371,18 @@ export default function Home() {
                 Start Shopping
               </Link>
               <a
-                href="https://wa.me/2547XXXXXXXX"
+                href={`https://wa.me/${siteContent.whatsapp.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2.5 px-7 py-3.5 border border-[var(--medium-gray)] text-[var(--charcoal)] font-semibold rounded-xl hover:border-[var(--teal)] hover:bg-[var(--teal-light)] transition-all"
               >
                 Chat on WhatsApp
+                <InlineEdit
+                  value={siteContent.whatsapp}
+                  onSave={v => updateContent({ whatsapp: v })}
+                  className="text-xs text-[var(--text-muted)] ml-1"
+                  placeholder="+254..."
+                />
               </a>
             </div>
           </ScrollReveal>
