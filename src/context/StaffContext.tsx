@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { products as baseProducts } from '../data/products';
 import type { Product } from '../data/products';
-import { db, isFirebaseConfigured } from '../lib/firebase';
-import { doc, setDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 
 // ── Credentials ──────────────────────────────────────────────────────────────
 const STAFF_USERNAME  = 'admin';
@@ -70,6 +68,54 @@ function loadFooterLocal(): FooterData {
   return DEFAULT_FOOTER;
 }
 
+// ── KV helpers ───────────────────────────────────────────────────────────────
+// On Vercel these hit /api/catalog and /api/footer (same-origin).
+// During local `vite dev` the routes don't exist, so errors are silently ignored.
+
+async function kvGetCatalog(): Promise<EditableProduct[] | null> {
+  try {
+    const r = await fetch('/api/catalog');
+    if (!r.ok) return null;
+    const { products } = await r.json() as { products: EditableProduct[] | null };
+    return products;
+  } catch {
+    return null;
+  }
+}
+
+async function kvSaveCatalog(products: EditableProduct[]): Promise<void> {
+  try {
+    await fetch('/api/catalog', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: STAFF_PASSWORD, products }),
+    });
+  } catch {
+    // Network error — data already saved to localStorage, will sync on next load
+  }
+}
+
+async function kvGetFooter(): Promise<FooterData | null> {
+  try {
+    const r = await fetch('/api/footer');
+    if (!r.ok) return null;
+    const { footer } = await r.json() as { footer: FooterData | null };
+    return footer;
+  } catch {
+    return null;
+  }
+}
+
+async function kvSaveFooter(footer: FooterData): Promise<void> {
+  try {
+    await fetch('/api/footer', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ password: STAFF_PASSWORD, footer }),
+    });
+  } catch {}
+}
+
 // ── Context ───────────────────────────────────────────────────────────────────
 const StaffContext = createContext<StaffContextType | undefined>(undefined);
 
@@ -79,102 +125,51 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
   const [footerData, setFooterData] = useState<FooterData>(loadFooterLocal);
   const [hidePrices, setHidePrices] = useState(() => localStorage.getItem(HIDE_PRICES_KEY) === 'true');
 
-  // Refs that always hold the latest values — avoids stale closures in callbacks
-  const productsRef  = useRef<EditableProduct[]>(products);
-  const footerRef    = useRef<FooterData>(footerData);
+  // Refs hold the latest values — avoids stale closures in callbacks
+  const productsRef = useRef<EditableProduct[]>(products);
+  const footerRef   = useRef<FooterData>(footerData);
 
-  // How many writes are currently in-flight to Firestore
-  // onSnapshot updates are ignored while this is > 0
-  const pendingWrites = useRef(0);
+  useEffect(() => { productsRef.current = products;   }, [products]);
+  useEffect(() => { footerRef.current   = footerData; }, [footerData]);
 
-  const unsubCatalog = useRef<Unsubscribe | null>(null);
-  const unsubFooter  = useRef<Unsubscribe | null>(null);
+  // ── On mount: pull latest data from KV, deep-merge over localStorage ─────
+  useEffect(() => {
+    kvGetCatalog().then(remote => {
+      if (!remote) return; // KV not set up or network error — localStorage is fine
+      const same = JSON.stringify(remote) === JSON.stringify(productsRef.current);
+      if (same) return;
+      productsRef.current = remote;
+      setProducts(remote);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(remote)); } catch {}
+    });
 
-  // Keep refs in sync with state
-  useEffect(() => { productsRef.current  = products;   }, [products]);
-  useEffect(() => { footerRef.current    = footerData; }, [footerData]);
+    kvGetFooter().then(remote => {
+      if (!remote) return;
+      const merged = { ...DEFAULT_FOOTER, ...remote };
+      const same = JSON.stringify(merged) === JSON.stringify(footerRef.current);
+      if (same) return;
+      footerRef.current = merged;
+      setFooterData(merged);
+      try { localStorage.setItem(FOOTER_KEY, JSON.stringify(merged)); } catch {}
+    });
+  }, []);
 
-  // ── Stable write helpers ──────────────────────────────────────────────────
-  // These are the ONLY place we call setProducts / setFooterData and touch Firestore.
-  // Always read from refs so they're never stale.
-
+  // ── Stable write helpers ─────────────────────────────────────────────────
   const commitProducts = useCallback((next: EditableProduct[]) => {
     productsRef.current = next;
     setProducts(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-
-    if (isFirebaseConfigured && db) {
-      pendingWrites.current += 1;
-      setDoc(doc(db, 'dopha', 'catalog'), { products: next })
-        .catch(err => console.error('Firestore products write failed:', err))
-        .finally(() => {
-          // Give the echo onSnapshot time to arrive before we start listening again
-          setTimeout(() => { pendingWrites.current = Math.max(0, pendingWrites.current - 1); }, 3000);
-        });
-    }
+    void kvSaveCatalog(next);
   }, []);
 
   const commitFooter = useCallback((next: FooterData) => {
     footerRef.current = next;
     setFooterData(next);
     try { localStorage.setItem(FOOTER_KEY, JSON.stringify(next)); } catch {}
-
-    if (isFirebaseConfigured && db) {
-      pendingWrites.current += 1;
-      setDoc(doc(db, 'dopha', 'footer'), next)
-        .catch(err => console.error('Firestore footer write failed:', err))
-        .finally(() => {
-          setTimeout(() => { pendingWrites.current = Math.max(0, pendingWrites.current - 1); }, 3000);
-        });
-    }
+    void kvSaveFooter(next);
   }, []);
 
-  // ── Firebase real-time listeners (other-device updates) ──────────────────
-  useEffect(() => {
-    if (!isFirebaseConfigured || !db) return;
-
-    const catalogRef = doc(db, 'dopha', 'catalog');
-    unsubCatalog.current = onSnapshot(catalogRef, async snap => {
-      // Skip if we have in-flight writes (this snapshot is our own echo)
-      if (pendingWrites.current > 0) return;
-
-      if (!snap.exists()) {
-        // No Firestore doc yet — seed with current state (preserves localStorage edits)
-        pendingWrites.current += 1;
-        await setDoc(catalogRef, { products: productsRef.current })
-          .catch(console.error)
-          .finally(() => setTimeout(() => { pendingWrites.current = Math.max(0, pendingWrites.current - 1); }, 3000));
-        return;
-      }
-
-      // Another device wrote — accept only if newer than what we have locally.
-      // We compare by stringifying; if identical, skip the re-render.
-      const incoming = snap.data().products as EditableProduct[];
-      const currentJSON = JSON.stringify(productsRef.current);
-      const incomingJSON = JSON.stringify(incoming);
-      if (incomingJSON === currentJSON) return;
-
-      productsRef.current = incoming;
-      setProducts(incoming);
-      try { localStorage.setItem(STORAGE_KEY, incomingJSON); } catch {}
-    });
-
-    const footerDocRef = doc(db, 'dopha', 'footer');
-    unsubFooter.current = onSnapshot(footerDocRef, snap => {
-      if (pendingWrites.current > 0 || !snap.exists()) return;
-      const data = { ...DEFAULT_FOOTER, ...(snap.data() as FooterData) };
-      footerRef.current = data;
-      setFooterData(data);
-      try { localStorage.setItem(FOOTER_KEY, JSON.stringify(data)); } catch {}
-    });
-
-    return () => {
-      unsubCatalog.current?.();
-      unsubFooter.current?.();
-    };
-  }, []);
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────
   const login = useCallback((username: string, password: string): boolean => {
     if (username.trim().toLowerCase() === STAFF_USERNAME && password.trim() === STAFF_PASSWORD) {
       setIsStaff(true);
@@ -189,10 +184,9 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(SESSION_KEY);
   }, []);
 
-  // ── Product CRUD — read from ref, never from stale closure ────────────────
+  // ── Product CRUD ─────────────────────────────────────────────────────────
   const updateProduct = useCallback((id: number, updates: Partial<EditableProduct>) => {
-    const next = productsRef.current.map(p => p.id === id ? { ...p, ...updates } : p);
-    commitProducts(next);
+    commitProducts(productsRef.current.map(p => p.id === id ? { ...p, ...updates } : p));
   }, [commitProducts]);
 
   const addProduct = useCallback((product: Omit<EditableProduct, 'id'>) => {
