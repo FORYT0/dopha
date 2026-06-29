@@ -1,14 +1,22 @@
-import { kv } from '@vercel/kv';
+import { put, list } from '@vercel/blob';
 
 const ADMIN_PASS = 'dopha2025';
-const KEY = 'dopha:footer';
+const BLOB_PATH  = 'dopha/footer.json';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   if (req.method === 'GET') {
     try {
-      const footer = await kv.get(KEY);
-      res.status(200).json({ footer: footer ?? null });
+      const { blobs } = await list({ prefix: BLOB_PATH });
+      const blob = blobs.find(b => b.pathname === BLOB_PATH);
+      if (!blob) {
+        res.status(200).json({ footer: null });
+        return;
+      }
+      const data = await fetch(blob.url).then(r => r.json());
+      res.status(200).json({ footer: data });
     } catch {
       res.status(200).json({ footer: null });
     }
@@ -23,10 +31,15 @@ export default async function handler(req: any, res: any) {
       return;
     }
     try {
-      await kv.set(KEY, footer);
+      await put(BLOB_PATH, JSON.stringify(footer), {
+        access:            'public',
+        addRandomSuffix:   false,
+        contentType:       'application/json',
+        cacheControlMaxAge: 0,
+      });
       res.status(200).json({ ok: true });
     } catch (e) {
-      console.error('KV footer write error:', e);
+      console.error('Blob footer write error:', e);
       res.status(500).json({ error: 'Write failed' });
     }
     return;
