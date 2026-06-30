@@ -7,7 +7,7 @@ const STAFF_USERNAME  = 'admin';
 const STAFF_PASSWORD  = 'dopha2025';
 
 // ── localStorage keys ────────────────────────────────────────────────────────
-const STORAGE_KEY     = 'dopha_products_v1';
+const STORAGE_KEY     = 'dopha_products_v2';
 const SESSION_KEY     = 'dopha_staff_session';
 const FOOTER_KEY      = 'dopha_footer_v1';
 const CONTENT_KEY     = 'dopha_content_v1';
