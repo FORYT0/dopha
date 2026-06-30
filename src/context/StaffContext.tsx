@@ -141,9 +141,17 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
     blobGet().then(remote => {
       if (!remote) return;
       if (remote.products) {
-        const s = JSON.stringify(remote.products);
-        productsRef.current = remote.products;
-        setProducts(remote.products);
+        // Blob stores overrides — apply onto baseProducts (source of truth for catalog).
+        // This removes junk/test entries and ensures all 140 products always appear.
+        // image always taken from baseProducts so new deploys show updated photos.
+        const overrideMap = new Map(remote.products.map(p => [p.id, p]));
+        const merged: EditableProduct[] = (baseProducts as EditableProduct[]).map(base => {
+          const override = overrideMap.get(base.id);
+          return override ? { ...base, ...override, image: base.image } : { ...base };
+        });
+        const s = JSON.stringify(merged);
+        productsRef.current = merged;
+        setProducts(merged);
         try { localStorage.setItem(STORAGE_KEY, s); } catch {}
       }
       if (remote.footer) {
