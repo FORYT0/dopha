@@ -309,6 +309,7 @@ export default function Home() {
               {filteredProducts.map(product => (
                 <ProductCard key={product.id} product={product} viewMode="list" />
               ))}
+            </div>
           )}
           <div className="text-center mt-10">
             <Link
