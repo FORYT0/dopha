@@ -35,7 +35,7 @@ interface ProductCardProps {
   product: EditableProduct;
   viewMode?: ViewMode;
   /** Ref forwarded for scroll-to-highlight */
-  innerRef?: RefObject<HTMLDivElement>;
+  innerRef?: RefObject<HTMLDivElement | null>;
   highlighted?: boolean;
 }
 
