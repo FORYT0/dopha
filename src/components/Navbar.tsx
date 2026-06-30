@@ -1,22 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Microchip, ShoppingCart, Search, Menu, X, ShieldCheck, LogOut } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStaff } from '../context/StaffContext';
 import StaffLoginModal from './StaffLoginModal';
+import SearchOverlay from './SearchOverlay';
 
-interface NavbarProps {
-  onSearch?: (query: string) => void;
-}
-
-export default function Navbar({ onSearch }: NavbarProps) {
+export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [showStaffLogin, setShowStaffLogin] = useState(false);
+  const [desktopQuery, setDesktopQuery] = useState('');
   const { totalItems, setIsOpen } = useCart();
   const { isStaff, logout } = useStaff();
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -28,12 +27,6 @@ export default function Navbar({ onSearch }: NavbarProps) {
     setMobileOpen(false);
   }, [location]);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setSearchQuery(q);
-    onSearch?.(q);
-  };
-
   const navLinks = [
     { to: '/', label: 'Home' },
     { to: '/products', label: 'Products' },
@@ -41,10 +34,19 @@ export default function Navbar({ onSearch }: NavbarProps) {
     { to: '/about', label: 'About' },
   ];
 
+  const handleDesktopSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (desktopQuery.trim()) {
+      navigate(`/products?search=${encodeURIComponent(desktopQuery.trim())}`);
+      setDesktopQuery('');
+    }
+  };
+
   return (
     <>
       <nav className={`fixed left-0 right-0 z-50 bg-white border-b border-[var(--medium-gray)] transition-all duration-300 ${isStaff ? 'top-9' : 'top-0'} ${scrolled ? 'shadow-md' : ''}`}>
         <div className="max-w-[1280px] mx-auto px-[5%] h-16 flex items-center justify-between">
+          {/* Logo */}
           <Link to="/" className="flex items-center gap-3 no-underline">
             <div className="w-10 h-10 bg-[var(--teal)] rounded-xl flex items-center justify-center text-white">
               <Microchip size={22} />
@@ -54,6 +56,7 @@ export default function Navbar({ onSearch }: NavbarProps) {
             </span>
           </Link>
 
+          {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map(link => (
               <Link
@@ -69,17 +72,32 @@ export default function Navbar({ onSearch }: NavbarProps) {
             ))}
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex relative">
+          {/* Right actions */}
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Desktop search bar */}
+            <form onSubmit={handleDesktopSearch} className="hidden md:flex relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 type="text"
                 placeholder="Search components..."
-                value={searchQuery}
-                onChange={handleSearch}
-                className="bg-[var(--light-gray)] border border-[var(--medium-gray)] rounded-lg pl-9 pr-4 py-2 text-sm w-52 focus:w-72 transition-all outline-none focus:border-[var(--teal)] focus:ring-1 focus:ring-[var(--teal)]"
+                value={desktopQuery}
+                onChange={e => setDesktopQuery(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                className="bg-[var(--light-gray)] border border-[var(--medium-gray)] rounded-lg pl-9 pr-4 py-2 text-sm w-52 focus:w-72 transition-all outline-none focus:border-[var(--teal)] focus:ring-1 focus:ring-[var(--teal)] cursor-pointer"
+                readOnly
               />
-            </div>
+            </form>
+
+            {/* Mobile search button */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="md:hidden p-2 rounded-xl text-[var(--charcoal)] hover:bg-[var(--light-gray)] transition-colors"
+              aria-label="Search"
+            >
+              <Search size={22} />
+            </button>
+
+            {/* Cart */}
             <button
               onClick={() => setIsOpen(true)}
               className="relative p-2 text-[var(--charcoal)] hover:text-[var(--teal)] transition-colors"
@@ -91,7 +109,8 @@ export default function Navbar({ onSearch }: NavbarProps) {
                 </span>
               )}
             </button>
-            {/* Staff button — always visible */}
+
+            {/* Staff button */}
             {isStaff ? (
               <button
                 onClick={logout}
@@ -112,6 +131,7 @@ export default function Navbar({ onSearch }: NavbarProps) {
               </button>
             )}
 
+            {/* Mobile hamburger */}
             <button
               className="md:hidden p-2 text-[var(--charcoal)]"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -122,32 +142,27 @@ export default function Navbar({ onSearch }: NavbarProps) {
         </div>
       </nav>
 
+      {/* Search overlay (mobile + desktop) */}
+      <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
       {showStaffLogin && <StaffLoginModal onClose={() => setShowStaffLogin(false)} />}
 
+      {/* Mobile nav drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-white pt-16 px-6 md:hidden">
-          <div className="flex flex-col gap-4 mt-4">
-            <div className="relative mb-2">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
-                type="text"
-                placeholder="Search components..."
-                value={searchQuery}
-                onChange={handleSearch}
-                className="w-full bg-[var(--light-gray)] border border-[var(--medium-gray)] rounded-lg pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[var(--teal)]"
-              />
-            </div>
+        <div className="fixed inset-0 z-40 bg-white pt-16 px-6 md:hidden overflow-y-auto">
+          <div className="flex flex-col gap-1 mt-4">
             {navLinks.map(link => (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`text-lg font-medium py-3 border-b border-[var(--medium-gray)] ${location.pathname === link.to ? 'text-[var(--teal)]' : 'text-[var(--charcoal)]'}`}
+                className={`text-lg font-medium py-3.5 border-b border-[var(--medium-gray)] flex items-center justify-between ${location.pathname === link.to ? 'text-[var(--teal)]' : 'text-[var(--charcoal)]'}`}
               >
                 {link.label}
+                {location.pathname === link.to && <span className="w-1.5 h-1.5 rounded-full bg-[var(--teal)]" />}
               </Link>
             ))}
-            {/* Staff login in mobile menu */}
-            <div className="pt-2">
+
+            <div className="pt-4">
               {isStaff ? (
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}

@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, LayoutGrid, List } from 'lucide-react';
 import { categories } from '../data/products';
 import { useStaff } from '../context/StaffContext';
-import ProductCard from '../components/ProductCard';
+import ProductCard, { type ViewMode } from '../components/ProductCard';
 
 const sortOptions = [
   { key: 'featured', label: 'Featured' },
@@ -16,25 +16,35 @@ export default function ProductsPage() {
   const { products } = useStaff();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || '';
+  const initialSearch   = searchParams.get('search') || '';
+  const highlightId     = Number(searchParams.get('highlight') || '0');
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery]           = useState(initialSearch);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategory ? [initialCategory] : []);
-  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-  const [sortBy, setSortBy] = useState('featured');
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedBadges, setSelectedBadges]     = useState<string[]>([]);
+  const [priceRange, setPriceRange]             = useState({ min: '', max: '' });
+  const [sortBy, setSortBy]                     = useState('featured');
+  const [showFilters, setShowFilters]           = useState(false);
+  const [viewMode, setViewMode]                 = useState<ViewMode>('grid');
 
-  const toggleCategory = (cat: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    );
-  };
+  // Sync search param when URL changes (e.g. from navbar search)
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch);
+  }, [initialSearch]);
 
-  const toggleBadge = (badge: string) => {
-    setSelectedBadges(prev =>
-      prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]
-    );
-  };
+  // Refs for highlighted product scroll
+  const highlightRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      setTimeout(() => highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    }
+  }, [highlightId, products]);
+
+  const toggleCategory = (cat: string) =>
+    setSelectedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+
+  const toggleBadge = (badge: string) =>
+    setSelectedBadges(prev => prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -49,13 +59,11 @@ export default function ProductsPage() {
       );
     }
 
-    if (selectedCategories.length > 0) {
+    if (selectedCategories.length > 0)
       result = result.filter(p => selectedCategories.includes(p.category));
-    }
 
-    if (selectedBadges.length > 0) {
+    if (selectedBadges.length > 0)
       result = result.filter(p => selectedBadges.includes(p.badge || ''));
-    }
 
     const min = parseInt(priceRange.min);
     const max = parseInt(priceRange.max);
@@ -63,9 +71,9 @@ export default function ProductsPage() {
     if (!isNaN(max)) result = result.filter(p => p.price <= max);
 
     switch (sortBy) {
-      case 'price-asc': result.sort((a, b) => a.price - b.price); break;
+      case 'price-asc':  result.sort((a, b) => a.price - b.price); break;
       case 'price-desc': result.sort((a, b) => b.price - a.price); break;
-      case 'name-asc': result.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'name-asc':   result.sort((a, b) => a.name.localeCompare(b.name)); break;
       default: break;
     }
 
@@ -80,7 +88,9 @@ export default function ProductsPage() {
       <div className="bg-[var(--light-gray)] py-14 border-b border-[var(--medium-gray)]">
         <div className="max-w-[1280px] mx-auto px-[5%]">
           <div className="text-sm text-[var(--text-muted)] mb-2">
-            <span className="hover:text-[var(--teal)] cursor-pointer">Home</span> <span className="mx-2">/</span> <span className="text-[var(--charcoal)]">Products</span>
+            <span className="hover:text-[var(--teal)] cursor-pointer">Home</span>
+            <span className="mx-2">/</span>
+            <span className="text-[var(--charcoal)]">Products</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--charcoal)] mb-2">All Components</h1>
           <p className="text-[var(--text-muted)]">Browse our complete catalog of {products.length} electronic components</p>
@@ -88,8 +98,9 @@ export default function ProductsPage() {
       </div>
 
       <div className="max-w-[1280px] mx-auto px-[5%] py-8">
-        {/* Search and controls */}
+        {/* Search + controls row */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Search */}
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
@@ -100,10 +111,13 @@ export default function ProductsPage() {
               className="w-full bg-white border border-[var(--medium-gray)] rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[var(--teal)] focus:ring-1 focus:ring-[var(--teal)]"
             />
           </div>
-          <div className="flex gap-3">
+
+          {/* Controls row */}
+          <div className="flex gap-2 flex-wrap">
+            {/* Filters button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium border transition-all ${showFilters ? 'bg-[var(--teal)] text-white border-[var(--teal)]' : 'bg-white border-[var(--medium-gray)] text-[var(--charcoal)] hover:border-[var(--teal)]'}`}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${showFilters ? 'bg-[var(--teal)] text-white border-[var(--teal)]' : 'bg-white border-[var(--medium-gray)] text-[var(--charcoal)] hover:border-[var(--teal)]'}`}
             >
               <SlidersHorizontal size={16} />
               Filters
@@ -113,13 +127,33 @@ export default function ProductsPage() {
                 </span>
               )}
             </button>
+
+            {/* Sort */}
             <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value)}
-              className="px-5 py-3 rounded-xl text-sm font-medium border border-[var(--medium-gray)] bg-white outline-none focus:border-[var(--teal)] cursor-pointer"
+              className="px-4 py-3 rounded-xl text-sm font-medium border border-[var(--medium-gray)] bg-white outline-none focus:border-[var(--teal)] cursor-pointer"
             >
               {sortOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
+
+            {/* View toggle */}
+            <div className="flex rounded-xl border border-[var(--medium-gray)] overflow-hidden bg-white">
+              <button
+                onClick={() => setViewMode('grid')}
+                title="Grid view"
+                className={`flex items-center justify-center w-11 h-11 transition-colors ${viewMode === 'grid' ? 'bg-[var(--teal)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--light-gray)]'}`}
+              >
+                <LayoutGrid size={17} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                title="List view"
+                className={`flex items-center justify-center w-11 h-11 border-l border-[var(--medium-gray)] transition-colors ${viewMode === 'list' ? 'bg-[var(--teal)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--light-gray)]'}`}
+              >
+                <List size={17} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -141,7 +175,7 @@ export default function ProductsPage() {
             ))}
             {(priceRange.min || priceRange.max) && (
               <button onClick={() => setPriceRange({ min: '', max: '' })} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-200 transition-colors">
-                KSh {priceRange.min || '0'} - {priceRange.max || '∞'} <X size={12} />
+                KSh {priceRange.min || '0'} – {priceRange.max || '∞'} <X size={12} />
               </button>
             )}
             <button onClick={() => { setSelectedCategories([]); setSelectedBadges([]); setPriceRange({ min: '', max: '' }); }} className="text-xs text-[var(--text-muted)] hover:text-red-500 ml-2 underline">
@@ -152,7 +186,7 @@ export default function ProductsPage() {
 
         <p className="text-sm text-[var(--text-muted)] mb-6">{filteredProducts.length} results found</p>
 
-        {/* Filters + Products Grid */}
+        {/* Filters + Products */}
         <div className="flex gap-8">
           {/* Sidebar filters */}
           {(showFilters || window.innerWidth >= 768) && (
@@ -176,40 +210,18 @@ export default function ProductsPage() {
 
                 <h3 className="text-sm font-bold text-[var(--charcoal)] mb-4 uppercase tracking-wider">Price Range</h3>
                 <div className="flex gap-2 mb-6">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={priceRange.min}
-                    onChange={e => setPriceRange(p => ({ ...p, min: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[var(--medium-gray)] rounded-lg text-sm outline-none focus:border-[var(--teal)]"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={priceRange.max}
-                    onChange={e => setPriceRange(p => ({ ...p, max: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[var(--medium-gray)] rounded-lg text-sm outline-none focus:border-[var(--teal)]"
-                  />
+                  <input type="number" placeholder="Min" value={priceRange.min} onChange={e => setPriceRange(p => ({ ...p, min: e.target.value }))} className="w-full px-3 py-2 border border-[var(--medium-gray)] rounded-lg text-sm outline-none focus:border-[var(--teal)]" />
+                  <input type="number" placeholder="Max" value={priceRange.max} onChange={e => setPriceRange(p => ({ ...p, max: e.target.value }))} className="w-full px-3 py-2 border border-[var(--medium-gray)] rounded-lg text-sm outline-none focus:border-[var(--teal)]" />
                 </div>
 
                 <h3 className="text-sm font-bold text-[var(--charcoal)] mb-4 uppercase tracking-wider">Badge</h3>
                 <div className="space-y-2.5">
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={selectedBadges.includes('sale')}
-                      onChange={() => toggleBadge('sale')}
-                      className="w-4 h-4 rounded border-[var(--medium-gray)] text-[var(--teal)] focus:ring-[var(--teal)]"
-                    />
+                    <input type="checkbox" checked={selectedBadges.includes('sale')} onChange={() => toggleBadge('sale')} className="w-4 h-4 rounded border-[var(--medium-gray)] text-[var(--teal)] focus:ring-[var(--teal)]" />
                     <span className="text-sm text-[var(--charcoal)] group-hover:text-[var(--teal)] transition-colors">On Sale</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={selectedBadges.includes('tum')}
-                      onChange={() => toggleBadge('tum')}
-                      className="w-4 h-4 rounded border-[var(--medium-gray)] text-[var(--teal)] focus:ring-[var(--teal)]"
-                    />
+                    <input type="checkbox" checked={selectedBadges.includes('tum')} onChange={() => toggleBadge('tum')} className="w-4 h-4 rounded border-[var(--medium-gray)] text-[var(--teal)] focus:ring-[var(--teal)]" />
                     <span className="text-sm text-[var(--charcoal)] group-hover:text-[var(--teal)] transition-colors">TUM Favorites</span>
                   </label>
                 </div>
@@ -217,18 +229,36 @@ export default function ProductsPage() {
             </aside>
           )}
 
-          {/* Product Grid */}
-          <div className="flex-1">
+          {/* Product Grid / List */}
+          <div className="flex-1 min-w-0">
             {filteredProducts.length === 0 ? (
               <div className="text-center py-20">
                 <Search size={48} className="mx-auto mb-4 text-[var(--text-muted)] opacity-40" />
                 <p className="text-lg font-medium text-[var(--charcoal)] mb-2">No products found</p>
                 <p className="text-sm text-[var(--text-muted)]">Try adjusting your filters or search query</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    viewMode="grid"
+                    innerRef={product.id === highlightId ? highlightRef : undefined}
+                    highlighted={product.id === highlightId}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {filteredProducts.map(product => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    viewMode="list"
+                    innerRef={product.id === highlightId ? highlightRef : undefined}
+                    highlighted={product.id === highlightId}
+                  />
                 ))}
               </div>
             )}

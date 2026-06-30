@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   Microchip, Zap, Activity, Thermometer, Battery,
   Wrench, Cable, Monitor, Wifi, Cog, ChevronRight, BookOpen, FileText,
-  Users, Percent, Presentation, Truck, Lightbulb
+  Users, Percent, Presentation, Truck, Lightbulb, LayoutGrid, List,
 } from 'lucide-react';
+import type { ViewMode } from '../components/ProductCard';
 import SectionHeader from '../components/SectionHeader';
 import ProductCard from '../components/ProductCard';
 import InlineEdit from '../components/InlineEdit';
@@ -110,6 +111,7 @@ function ScrollReveal({ children, className = '' }: { children: React.ReactNode;
 export default function Home() {
   const { products, siteContent, updateContent } = useStaff();
   const [activeTab, setActiveTab] = useState('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const filteredProducts = activeTab === 'all'
     ? products.slice(0, 12)
     : products.filter(p => p.category === activeTab).slice(0, 12);
@@ -262,23 +264,52 @@ export default function Home() {
             subtitle="Hand-picked for TUM engineering coursework"
           />
           <ScrollReveal>
-            <div className="flex flex-wrap justify-center gap-2.5 mb-10">
-              {tabs.map(tab => (
+            {/* Tabs + view toggle */}
+            <div className="flex flex-wrap items-center gap-2.5 mb-10">
+              <div className="flex flex-wrap gap-2.5 flex-1">
+                {tabs.map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-[var(--teal)] text-white' : 'bg-white border border-[var(--medium-gray)] text-[var(--text-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)]'}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              {/* View mode toggle */}
+              <div className="flex rounded-xl border border-[var(--medium-gray)] overflow-hidden bg-white shrink-0">
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-[var(--teal)] text-white' : 'bg-white border border-[var(--medium-gray)] text-[var(--text-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)]'}`}
+                  onClick={() => setViewMode('grid')}
+                  title="Grid view"
+                  className={`flex items-center justify-center w-10 h-10 transition-colors ${viewMode === 'grid' ? 'bg-[var(--teal)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--light-gray)]'}`}
                 >
-                  {tab.label}
+                  <LayoutGrid size={16} />
                 </button>
-              ))}
+                <button
+                  onClick={() => setViewMode('list')}
+                  title="List view"
+                  className={`flex items-center justify-center w-10 h-10 border-l border-[var(--medium-gray)] transition-colors ${viewMode === 'list' ? 'bg-[var(--teal)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--light-gray)]'}`}
+                >
+                  <List size={16} />
+                </button>
+              </div>
             </div>
           </ScrollReveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+
+          {/* Grid or list layout */}
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {filteredProducts.map(product => (
+                <ProductCard key={product.id} product={product} viewMode="grid" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filteredProducts.map(product => (
+                <ProductCard key={product.id} product={product} viewMode="list" />
+              ))}
+          )}
           <div className="text-center mt-10">
             <Link
               to="/products"
