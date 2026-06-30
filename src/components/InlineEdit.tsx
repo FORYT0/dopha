@@ -53,7 +53,6 @@ export default function InlineEdit({
 
   // ── Visitor mode ──────────────────────────────────────────────────────────
   if (!isStaff) {
-    // @ts-expect-error dynamic tag
     return <Tag className={className}>{value}</Tag>;
   }
 
@@ -93,7 +92,6 @@ export default function InlineEdit({
 
   // ── Staff view mode (click to start editing) ─────────────────────────────
   return (
-    // @ts-expect-error dynamic tag
     <Tag
       onClick={() => setEditing(true)}
       title="Click to edit"
