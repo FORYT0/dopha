@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import {
   Cpu, Wifi, Camera, Monitor, Thermometer, Ruler, Eye, Flame, Wind, Sun,
   Droplets, Mic, Heart, Cloud, AlertTriangle, Waves, CloudRain, Scale,
@@ -35,7 +35,7 @@ interface ProductCardProps {
   product: EditableProduct;
   viewMode?: ViewMode;
   /** Ref forwarded for scroll-to-highlight */
-  innerRef?: React.RefObject<HTMLDivElement>;
+  innerRef?: RefObject<HTMLDivElement>;
   highlighted?: boolean;
 }
 
