@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Microchip, ShoppingCart, Search, Menu, X, ShieldCheck, LogOut, BookImage } from 'lucide-react';
+import { Microchip, ShoppingCart, Search, Menu, X, ShieldCheck, LogOut } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStaff } from '../context/StaffContext';
 import StaffLoginModal from './StaffLoginModal';
