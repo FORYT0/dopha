@@ -127,7 +127,7 @@ export const projectGuides: ProjectGuide[] = [
     id: 'line-follower',
     title: 'Line Following Robot',
     shortTitle: 'Line Follower',
-    description: 'Build an autonomous robot that follows a black line on a white surface. Uses IR sensors to detect the line and a motor driver to control wheel movement. A favorite TUM mechatronics project.',
+    description: 'Build an autonomous robot that follows a black line on a white surface. Uses IR sensors to detect the line and a motor driver to control wheel movement. A classic mechatronics project.',
     difficulty: 'Intermediate',
     duration: '2 hours',
     course: 'Mechatronics & Robotics',

@@ -110,7 +110,7 @@ export default function ProductCard({ product, viewMode = 'grid', innerRef, high
           <div className="shrink-0 flex flex-col items-end gap-2 pr-4 py-3">
             {product.badge && (
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.badge === 'sale' ? 'bg-[var(--amber)] text-white' : 'bg-[var(--teal)] text-white'}`}>
-                {product.badge === 'sale' ? 'SALE' : 'TUM'}
+                {product.badge === 'sale' ? 'SALE' : 'TOP'}
               </span>
             )}
             {!hidePrices && (
@@ -160,7 +160,7 @@ export default function ProductCard({ product, viewMode = 'grid', innerRef, high
         {/* Badge */}
         {product.badge && (
           <span className={`absolute top-3 left-3 z-10 text-[11px] font-bold px-3 py-1 rounded-full ${product.badge === 'sale' ? 'bg-[var(--amber)] text-white' : 'bg-[var(--teal)] text-white'}`}>
-            {product.badge === 'sale' ? 'SALE' : 'TUM FAVE'}
+            {product.badge === 'sale' ? 'SALE' : 'TOP PICK'}
           </span>
         )}
 

@@ -102,7 +102,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-2 text-sm text-[var(--text-muted)]">
                 <GraduationCap size={14} className="text-[var(--teal)] shrink-0 mt-0.5" />
-                TUM Campus Pickup Available
+                Campus Pickup Available
               </li>
             </ul>
           </div>

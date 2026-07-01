@@ -115,7 +115,7 @@ export default function ProductQuickView({ product, onClose }: Props) {
             </span>
             {product.badge && (
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.badge === 'sale' ? 'bg-[var(--amber)] text-white' : 'bg-[var(--teal)] text-white'}`}>
-                {product.badge === 'sale' ? 'SALE' : 'TUM FAVE'}
+                {product.badge === 'sale' ? 'SALE' : 'TOP PICK'}
               </span>
             )}
           </div>

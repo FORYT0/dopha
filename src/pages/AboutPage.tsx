@@ -26,10 +26,10 @@ export default function AboutPage() {
             <h2 className="text-3xl font-extrabold text-[var(--charcoal)] mb-6">Our Story</h2>
             <div className="space-y-4 text-[var(--text-muted)] leading-relaxed">
               <p>
-                Dopha Electronics was founded in 2024 by a group of TUM engineering graduates who experienced firsthand the struggle of sourcing quality electronic components in Mombasa. Every semester, students faced the same challenges: traveling to Nairobi for basic parts, dealing with unreliable suppliers, or settling for counterfeit components that failed during critical project demonstrations.
+                Dopha Electronics was founded in 2024 by a group of engineering graduates who experienced firsthand the struggle of sourcing quality electronic components in Mombasa. Every semester, students faced the same challenges: traveling to Nairobi for basic parts, dealing with unreliable suppliers, or settling for counterfeit components that failed during critical project demonstrations.
               </p>
               <p>
-                We decided to change that. Starting from a small shop near the TUM campus, we began stocking the essential components that every engineering student needs — from Arduino boards and sensors to soldering equipment and passive components.
+                We decided to change that. Starting from a small shop in Mombasa, we began stocking the essential components that every engineering student needs — from Arduino boards and sensors to soldering equipment and passive components.
               </p>
               <p>
                 Today, Dopha Electronics serves over 5,000 students across Kenya, offering 140+ products, same-day campus delivery, and the unique Project Lab — interactive circuit diagrams that help students understand their mandatory projects and source components with a single click.
@@ -40,12 +40,12 @@ export default function AboutPage() {
             <div className="relative rounded-2xl overflow-hidden shadow-sm h-80 mb-6">
               <img
                 src="/images/about-students.jpg"
-                alt="TUM engineering students working on projects"
+                alt="Engineering students working on projects"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--charcoal)]/60 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4 text-white">
-                <p className="text-sm font-medium opacity-90">TUM Engineering Students</p>
+                <p className="text-sm font-medium opacity-90">Engineering Students at Work</p>
                 <p className="text-xs opacity-70">Building the future, one project at a time</p>
               </div>
             </div>
@@ -80,11 +80,11 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               { icon: <Zap size={28} />, title: 'Quality Components', desc: 'We source directly from manufacturers and authorized distributors. Every component is tested and guaranteed genuine.' },
-              { icon: <GraduationCap size={28} />, title: 'Student Pricing', desc: '10% student discount with valid TUM ID. Bulk discounts for class projects and student clubs.' },
+              { icon: <GraduationCap size={28} />, title: 'Student Pricing', desc: '10% student discount for verified students. Bulk discounts for class projects and student clubs.' },
               { icon: <Users size={28} />, title: 'Community Support', desc: 'Active WhatsApp and Discord communities where students help each other with projects and troubleshooting.' },
-              { icon: <Target size={28} />, title: 'Curriculum Aligned', desc: 'Our product catalog is organized around the TUM School of Engineering & Technology syllabus and mandatory projects.' },
+              { icon: <Target size={28} />, title: 'Curriculum Aligned', desc: 'Our product catalog is organized around engineering and technology syllabuses, covering components for labs and mandatory projects.' },
               { icon: <Award size={28} />, title: 'Project Lab', desc: 'Interactive circuit diagrams with clickable components. Learn how to build common projects and buy parts in one place.' },
-              { icon: <Clock size={28} />, title: 'Fast Delivery', desc: 'Same-day delivery to TUM campus. Free delivery on orders over KSh 3,000. Pickup point at campus gate.' },
+              { icon: <Clock size={28} />, title: 'Fast Delivery', desc: 'Fast local delivery across Mombasa. Free delivery on orders over KSh 3,000. Campus pickup also available.' },
             ].map((item, i) => (
               <ScrollReveal key={item.title} className={`transition-delay-${Math.min(i * 100, 500)}`}>
                 <div className="bg-white border border-[var(--medium-gray)] rounded-2xl p-8 hover:border-[var(--teal)] hover:-translate-y-1 transition-all duration-300">
@@ -99,7 +99,7 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* TUM Partnership */}
+        {/* Engineering Disciplines */}
         <div className="bg-white border border-[var(--medium-gray)] rounded-2xl p-8 md:p-12">
           <ScrollReveal>
             <div className="flex items-center gap-3 mb-6">
@@ -107,12 +107,12 @@ export default function AboutPage() {
                 <GraduationCap size={24} />
               </div>
               <div>
-                <h2 className="text-2xl font-extrabold text-[var(--charcoal)]">Official TUM Partner</h2>
-                <p className="text-sm text-[var(--text-muted)]">Technical University of Mombasa</p>
+                <h2 className="text-2xl font-extrabold text-[var(--charcoal)]">Built for Engineering Students</h2>
+                <p className="text-sm text-[var(--text-muted)]">Across all levels and disciplines</p>
               </div>
             </div>
             <p className="text-[var(--text-muted)] leading-relaxed mb-6">
-              Dopha Electronics is proud to be an official partner of the Technical University of Mombasa's School of Engineering & Technology. We work closely with faculty members to ensure our product catalog aligns with course requirements, from first-year electronics labs to final-year research projects.
+              Dopha Electronics stocks components that cover the full breadth of engineering and technology disciplines — from first-year electronics labs to final-year research projects. Whether you're studying electrical engineering, mechatronics, or computer networking, we have what you need.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {['Electrical & Electronic Eng.', 'Mechatronics & Robotics', 'Instrumentation & Control', 'Telecommunication Eng.'].map(dept => (
@@ -131,7 +131,7 @@ export default function AboutPage() {
           </ScrollReveal>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: <MapPin size={24} />, title: 'Location', desc: 'Mombasa, Kenya\nNear TUM Main Campus' },
+              { icon: <MapPin size={24} />, title: 'Location', desc: 'Mombasa, Kenya\nServing the Coast Region' },
               { icon: <Phone size={24} />, title: 'Phone', desc: '+254 7XX XXX XXX\nMon-Sat, 8AM-6PM' },
               { icon: <Mail size={24} />, title: 'Email', desc: 'info@dophaelectronics.co.ke\nOrders & Support' },
               { icon: <Clock size={24} />, title: 'Hours', desc: 'Monday-Saturday\n8:00 AM - 6:00 PM' },

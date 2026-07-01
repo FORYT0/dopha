@@ -11,7 +11,7 @@ interface Props {
 const BADGES = [
   { value: '', label: 'None' },
   { value: 'sale', label: 'Sale' },
-  { value: 'tum', label: 'TUM Fave' },
+  { value: 'tum', label: 'Top Pick' },
 ];
 
 const ICONS = [
@@ -200,7 +200,7 @@ export default function ProductEditModal({ product, onClose }: Props) {
                 <span className="text-xl font-extrabold text-[var(--teal)]">KSh {Number(form.price).toLocaleString()}</span>
                 {form.oldPrice && <span className="text-sm text-[var(--text-muted)] line-through">KSh {Number(form.oldPrice).toLocaleString()}</span>}
                 {form.badge === 'sale' && <span className="text-xs font-bold bg-[var(--amber)] text-white px-2 py-0.5 rounded-full">SALE</span>}
-                {form.badge === 'tum' && <span className="text-xs font-bold bg-[var(--teal)] text-white px-2 py-0.5 rounded-full">TUM FAVE</span>}
+                {form.badge === 'tum' && <span className="text-xs font-bold bg-[var(--teal)] text-white px-2 py-0.5 rounded-full">TOP PICK</span>}
               </div>
             </div>
           </>}

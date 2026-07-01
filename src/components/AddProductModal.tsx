@@ -10,7 +10,7 @@ interface Props {
 const BADGES = [
   { value: '', label: 'None' },
   { value: 'sale', label: 'Sale' },
-  { value: 'tum', label: 'TUM Fave' },
+  { value: 'tum', label: 'Top Pick' },
 ];
 
 const ICONS = [

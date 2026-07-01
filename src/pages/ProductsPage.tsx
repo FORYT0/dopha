@@ -233,7 +233,7 @@ export default function ProductsPage() {
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input type="checkbox" checked={selectedBadges.includes('tum')} onChange={() => toggleBadge('tum')} className="w-4 h-4 rounded border-[var(--medium-gray)] text-[var(--teal)] focus:ring-[var(--teal)]" />
-                    <span className="text-sm text-[var(--charcoal)] group-hover:text-[var(--teal)] transition-colors">TUM Favorites</span>
+                    <span className="text-sm text-[var(--charcoal)] group-hover:text-[var(--teal)] transition-colors">Top Picks</span>
                   </label>
                 </div>
               </div>

@@ -28,7 +28,7 @@ export const categories = [
 
 export const products: Product[] = [
   // Arduino & Microcontrollers
-  { id: 1,  name: 'Arduino Uno R3 (Original)',    category: 'microcontrollers', subcategory: 'arduino', price: 1700, oldPrice: 2000, desc: 'ATmega328P microcontroller board with USB cable. Essential for TUM intro to microcontrollers courses.', icon: 'Cpu', badge: 'sale', stock: 50, image: '/images/products/arduino-uno-r3.jpg' },
+  { id: 1,  name: 'Arduino Uno R3 (Original)',    category: 'microcontrollers', subcategory: 'arduino', price: 1700, oldPrice: 2000, desc: 'ATmega328P microcontroller board with USB cable. Essential for intro to microcontrollers courses.', icon: 'Cpu', badge: 'sale', stock: 50, image: '/images/products/arduino-uno-r3.jpg' },
   { id: 2,  name: 'Arduino Nano V3 (CH340)',       category: 'microcontrollers', subcategory: 'arduino', price: 1000, oldPrice: 1300, desc: 'Compact board with CH340 chip. Ideal for mini projects and breadboard prototyping.', icon: 'Cpu', badge: 'sale', stock: 45, image: '/images/products/arduino-nano.jpg' },
   { id: 3,  name: 'Arduino Uno R4 WiFi',           category: 'microcontrollers', subcategory: 'arduino', price: 6000, oldPrice: 7000, desc: '32-bit ARM Cortex-M4 with built-in WiFi/Bluetooth. For advanced IoT and embedded systems.', icon: 'Cpu', badge: 'tum', stock: 20, image: '/images/products/arduino-uno-r4-wifi.jpg' },
   { id: 4,  name: 'Arduino Mega 2560',             category: 'microcontrollers', subcategory: 'arduino', price: 3500, oldPrice: null, desc: '54 digital I/O pins, 16 analog inputs. For complex projects needing many pins.', icon: 'Cpu', badge: null, stock: 25, image: '/images/products/arduino-mega.jpg' },

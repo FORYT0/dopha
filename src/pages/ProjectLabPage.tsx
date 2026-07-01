@@ -859,7 +859,7 @@ export default function ProjectLabPage() {
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--charcoal)]">Project Lab</h1>
               <p className="text-[var(--text-muted)] mt-1 max-w-2xl">
-                Interactive circuit diagrams for TUM engineering projects. <strong className="text-[var(--charcoal)]">Click any component</strong> in the diagram to add it directly to your cart.
+                Interactive circuit diagrams for engineering projects. <strong className="text-[var(--charcoal)]">Click any component</strong> in the diagram to add it directly to your cart.
               </p>
             </div>
           </div>
