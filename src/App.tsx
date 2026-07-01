@@ -10,6 +10,7 @@ import Home from './pages/Home'
 import ProductsPage from './pages/ProductsPage'
 import ProjectLabPage from './pages/ProjectLabPage'
 import AboutPage from './pages/AboutPage'
+import VisualGuidePage from './pages/VisualGuidePage'
 import { useStaff } from './context/StaffContext'
 
 function AppShell() {
@@ -27,6 +28,7 @@ function AppShell() {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/project-lab" element={<ProjectLabPage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/visual-guide" element={<VisualGuidePage />} />
           </Routes>
         </main>
         <Footer />

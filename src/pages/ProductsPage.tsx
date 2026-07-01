@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, LayoutGrid, List } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Search, SlidersHorizontal, X, LayoutGrid, List, BookImage } from 'lucide-react';
 import { categories } from '../data/products';
 import { useStaff } from '../context/StaffContext';
 import ProductCard, { type ViewMode } from '../components/ProductCard';
@@ -92,8 +92,19 @@ export default function ProductsPage() {
             <span className="mx-2">/</span>
             <span className="text-[var(--charcoal)]">Products</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--charcoal)] mb-2">All Components</h1>
-          <p className="text-[var(--text-muted)]">Browse our complete catalog of {products.length} electronic components</p>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--charcoal)] mb-2">All Components</h1>
+              <p className="text-[var(--text-muted)]">Browse our complete catalog of {products.length} electronic components</p>
+            </div>
+            <Link
+              to="/visual-guide"
+              className="inline-flex items-center gap-2.5 px-5 py-3 bg-white border border-[var(--teal)] text-[var(--teal)] font-semibold rounded-xl hover:bg-[var(--teal)] hover:text-white transition-all text-sm shrink-0 shadow-sm"
+            >
+              <BookImage size={17} />
+              Visual Component Guide
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -170,7 +181,7 @@ export default function ProductsPage() {
             })}
             {selectedBadges.map(badge => (
               <button key={badge} onClick={() => toggleBadge(badge)} className="inline-flex items-center gap-1.5 bg-[var(--amber-light)] text-[var(--amber)] px-3 py-1.5 rounded-full text-xs font-semibold hover:bg-[var(--amber)] hover:text-white transition-colors">
-                {badge === 'sale' ? 'On Sale' : 'TUM Fave'} <X size={12} />
+                {badge === 'sale' ? 'On Sale' : 'Top Pick'} <X size={12} />
               </button>
             ))}
             {(priceRange.min || priceRange.max) && (
