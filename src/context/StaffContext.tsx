@@ -33,22 +33,22 @@ export interface SiteContent {
 }
 
 export const DEFAULT_FOOTER: FooterData = {
-  description: 'Your trusted electronics components supplier in Mombasa, Kenya. Serving TUM students, engineering professionals, and makers across East Africa with quality products at student-friendly prices.',
+  description: 'Your trusted electronics components supplier in Mombasa, Kenya. Serving students, engineering professionals, and makers across East Africa with quality products at student-friendly prices.',
   phone:       '+254 7XX XXX XXX',
   email:       'info@dophaelectronics.co.ke',
   address:     'Mombasa, Kenya',
   hours:       'Mon-Sat: 8AM - 6PM',
-  copyright:   '2026 Dopha Electronics. All rights reserved. | Proudly supporting TUM engineering students.',
+  copyright:   '2026 Dopha Electronics. All rights reserved. | Proudly supporting engineering students and makers.',
 };
 
 export const DEFAULT_CONTENT: SiteContent = {
   heroTitle:     'Powering the Next Generation of',
   heroHighlight: 'Engineers',
-  heroSubtitle:  'Premium electronic components, Arduino kits, sensors, and tools for TUM students and engineering enthusiasts across East Africa. Quality you can trust, prices you can afford.',
+  heroSubtitle:  'Premium electronic components, Arduino kits, sensors, and tools for students and engineering enthusiasts across East Africa. Quality you can trust, prices you can afford.',
   heroCta1:      'Browse Components',
   heroCta2:      'Project Lab',
   ctaTitle:      'Ready to Build Something Amazing?',
-  ctaSubtitle:   'Join thousands of TUM students and engineering professionals who trust Dopha Electronics for their projects.',
+  ctaSubtitle:   'Join thousands of students and engineering professionals who trust Dopha Electronics for their projects.',
   whatsapp:      '+2547XXXXXXXX',
 };
 
