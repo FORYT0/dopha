@@ -89,7 +89,7 @@ export default function VisualGuidePage() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search by name, type, or description… e.g. "resistor", "NPN transistor", "I2C""
+              placeholder="Search by name, type, or description... e.g. resistor, NPN transistor, I2C"
               className="w-full bg-white border-2 border-[var(--medium-gray)] rounded-2xl pl-12 pr-12 py-4 text-sm outline-none focus:border-[var(--teal)] transition-colors shadow-sm"
             />
             {query && (
