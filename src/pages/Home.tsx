@@ -29,15 +29,15 @@ const tabs = [
 ];
 
 const resources = [
-  { icon: <BookOpen size={28} />, title: 'Project Tutorials', desc: 'Step-by-step guides for Arduino, sensor interfacing, PCB design, and IoT projects tailored to TUM coursework.' },
+  { icon: <BookOpen size={28} />, title: 'Project Tutorials', desc: 'Step-by-step guides for Arduino, sensor interfacing, PCB design, and IoT projects tailored to your coursework.' },
   { icon: <FileText size={28} />, title: 'Component Datasheets', desc: 'Downloadable datasheets for all major components we stock. Organized by course module for easy reference.' },
-  { icon: <Users size={28} />, title: 'TUM Student Community', desc: 'Join our WhatsApp group and Discord server to connect with fellow TUM engineering students.' },
-  { icon: <Percent size={28} />, title: 'Student Discount Program', desc: 'Verify your TUM student ID and get 10% off all components. Bulk order discounts for class projects.' },
+  { icon: <Users size={28} />, title: 'Student Community', desc: 'Join our WhatsApp group and Discord server to connect with fellow engineering students and makers.' },
+  { icon: <Percent size={28} />, title: 'Student Discount Program', desc: 'Students get 10% off all components. Bulk order discounts available for class and group projects.' },
   { icon: <Presentation size={28} />, title: 'Workshop & Training', desc: 'Monthly hands-on workshops in Mombasa covering soldering, PCB design, Arduino programming, and more.' },
-  { icon: <Truck size={28} />, title: 'Fast Campus Delivery', desc: 'Same-day delivery to TUM Main Campus and surrounding areas. Free delivery on orders over KSh 3,000.' },
+  { icon: <Truck size={28} />, title: 'Fast Local Delivery', desc: 'Fast delivery to your campus and surrounding areas. Free delivery on orders over KSh 3,000.' },
 ];
 
-const tumCourses = [
+const engineeringCourses = [
   'BSc Electrical & Electronic Engineering', 'BTech Electrical & Electronic Engineering',
   'Diploma in Electronic Engineering', 'Diploma in Technology (Electronics & Automation)',
   'Diploma in Computer & Network Engineering', 'Diploma in Instrumentation & Control',
@@ -47,9 +47,9 @@ const tumCourses = [
 ];
 
 const testimonials = [
-  { text: 'Dopha Electronics saved my final year project! I needed an Arduino Uno R4 WiFi and multiple sensors at the last minute. They delivered to TUM campus the same day with a student discount.', initials: 'JM', name: 'James Mwenda', course: 'BSc Electrical & Electronic Engineering, TUM' },
-  { text: 'As a diploma student in Electronics & Automation, finding affordable components was tough. Dopha has everything I need at prices that fit a student budget. Their tutorials are incredibly helpful!', initials: 'AO', name: 'Amina Omar', course: 'Diploma in Technology (Electronics & Automation), TUM' },
-  { text: 'I run the TUM Robotics Club and we order all our components from Dopha. Their bulk pricing for student projects is unmatched. The quality is consistent and their support team understands electronics.', initials: 'DK', name: 'David Kimani', course: 'MTech Mechatronics, TUM Robotics Club Lead' },
+  { text: 'Dopha Electronics saved my final year project! I needed an Arduino Uno R4 WiFi and multiple sensors at the last minute. They delivered to campus the same day with a student discount.', initials: 'JM', name: 'James Mwenda', course: 'BSc Electrical & Electronic Engineering' },
+  { text: 'As a diploma student in Electronics & Automation, finding affordable components was tough. Dopha has everything I need at prices that fit a student budget. Their tutorials are incredibly helpful!', initials: 'AO', name: 'Amina Omar', course: 'Diploma in Technology (Electronics & Automation)' },
+  { text: 'I run our university Robotics Club and we order all our components from Dopha. Their bulk pricing for student projects is unmatched. The quality is consistent and their support team understands electronics.', initials: 'DK', name: 'David Kimani', course: 'MTech Mechatronics, Robotics Club Lead' },
 ];
 
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -192,7 +192,7 @@ export default function Home() {
             </div>
             <div className="text-center">
               <AnimatedCounter target={5000} suffix="+" />
-              <div className="text-sm text-[var(--text-muted)] mt-2 uppercase tracking-wider font-medium">TUM Students Served</div>
+              <div className="text-sm text-[var(--text-muted)] mt-2 uppercase tracking-wider font-medium">Students Served</div>
             </div>
             <div className="text-center">
               <AnimatedCounter target={15} />
@@ -206,18 +206,18 @@ export default function Home() {
         </div>
       </div>
 
-      {/* TUM Banner */}
+      {/* Engineering Banner */}
       <div className="bg-gradient-to-r from-[var(--teal-light)]/50 to-[var(--amber-light)]/50 py-16">
         <div className="max-w-[1280px] mx-auto px-[5%] text-center">
           <ScrollReveal>
             <h2 className="text-2xl md:text-3xl font-extrabold text-[var(--charcoal)] mb-3">
-              Built for TUM Engineers
+              Built for Engineers & Students
             </h2>
             <p className="text-[var(--text-muted)] max-w-2xl mx-auto mb-8">
-              We stock components aligned with the curriculum of the School of Engineering & Technology at Technical University of Mombasa — from Certificate to Master's level programs.
+              We stock components covering a wide range of engineering and technology disciplines — from Certificate to Master's level programs.
             </p>
             <div className="flex flex-wrap justify-center gap-2.5 max-w-4xl mx-auto">
-              {tumCourses.map(course => (
+              {engineeringCourses.map(course => (
                 <span key={course} className="bg-white/80 border border-[var(--medium-gray)] rounded-full px-4 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)] transition-all cursor-default">
                   {course}
                 </span>
@@ -261,7 +261,7 @@ export default function Home() {
         <div className="max-w-[1280px] mx-auto px-[5%]">
           <SectionHeader
             title="Featured Components"
-            subtitle="Hand-picked for TUM engineering coursework"
+            subtitle="Hand-picked for engineering students and makers"
           />
           <ScrollReveal>
             {/* Tabs + view toggle */}
@@ -351,8 +351,8 @@ export default function Home() {
       <section className="py-20 bg-[var(--light-gray)]">
         <div className="max-w-[1280px] mx-auto px-[5%]">
           <SectionHeader
-            title="What TUM Students Say"
-            subtitle="Trusted by engineering students across Kenya"
+            title="What Our Customers Say"
+            subtitle="Trusted by students and engineers across Kenya"
           />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
