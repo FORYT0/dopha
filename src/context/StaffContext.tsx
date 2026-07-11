@@ -76,7 +76,18 @@ interface StaffContextType {
 
 // ── localStorage helpers ─────────────────────────────────────────────────────
 function loadProductsLocal(): EditableProduct[] {
-  try { const r = localStorage.getItem(STORAGE_KEY); if (r) return JSON.parse(r) as EditableProduct[]; } catch {}
+  try {
+    const r = localStorage.getItem(STORAGE_KEY);
+    if (r) {
+      const saved = JSON.parse(r) as EditableProduct[];
+      // Merge saved products with base products so that fields added later
+      // (like `image`, `specs`) are always populated from base data if absent.
+      return saved.map(savedP => {
+        const base = baseProducts.find(b => b.id === savedP.id) as EditableProduct | undefined;
+        return base ? { ...base, ...savedP } : savedP;
+      });
+    }
+  } catch {}
   return baseProducts as EditableProduct[];
 }
 function loadFooterLocal(): FooterData {

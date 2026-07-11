@@ -850,9 +850,11 @@ export default function VisualGuidePage() {
 // ComponentCard
 // ══════════════════════════════════════════════════════════════════════════════
 function ComponentCard({ product, hidePrices, hovered, density, onHover, onLeave, onClick }: CardProps) {
+  const [imgError, setImgError] = useState(false);
   const IconComponent = (iconMap[product.icon] ?? CpuIcon) as LucideIcon;
   const tip = getTip(product);
   const showPackage = density === 'large';
+  const showImage = !!product.image && !imgError;
 
   return (
     <button
@@ -865,12 +867,13 @@ function ComponentCard({ product, hidePrices, hovered, density, onHover, onLeave
     >
       {/* Image */}
       <div className="relative aspect-square bg-gradient-to-br from-[var(--light-gray)] to-white flex items-center justify-center overflow-hidden">
-        {product.image ? (
+        {showImage ? (
           <img
             src={product.image}
             alt={product.name}
             className="w-full h-full object-contain p-3 transition-transform duration-300 group-hover:scale-110"
             loading="lazy"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-[var(--medium-gray)] flex items-center justify-center text-[var(--teal)]">
@@ -920,7 +923,9 @@ function ComponentCard({ product, hidePrices, hovered, density, onHover, onLeave
 function ComponentModal({ product, onClose, onSelectProduct, hidePrices, allProducts }: ModalProps) {
   const { addToCart } = useCart();
   const [lightbox, setLightbox] = useState(false);
+  const [modalImgError, setModalImgError] = useState(false);
   const tip = getTip(product);
+  const modalShowImage = !!product.image && !modalImgError;
 
   const related = useMemo(() =>
     allProducts
@@ -966,12 +971,13 @@ function ComponentModal({ product, onClose, onSelectProduct, hidePrices, allProd
 
               {/* Image side */}
               <div className="relative aspect-square bg-gradient-to-br from-[var(--light-gray)] to-white flex items-center justify-center overflow-hidden md:border-r border-b md:border-b-0 border-[var(--medium-gray)]">
-                {product.image ? (
+                {modalShowImage ? (
                   <img
                     src={product.image}
                     alt={product.name}
                     className="w-full h-full object-contain p-8 cursor-zoom-in"
                     onClick={() => setLightbox(true)}
+                    onError={() => setModalImgError(true)}
                   />
                 ) : (
                   <div className="w-24 h-24 rounded-2xl bg-white shadow border border-[var(--medium-gray)] flex items-center justify-center text-[var(--teal)]">
@@ -980,7 +986,7 @@ function ComponentModal({ product, onClose, onSelectProduct, hidePrices, allProd
                 )}
 
                 {/* Zoom button */}
-                {product.image && (
+                {modalShowImage && (
                   <button
                     onClick={() => setLightbox(true)}
                     title="Zoom image"
@@ -1122,7 +1128,7 @@ function ComponentModal({ product, onClose, onSelectProduct, hidePrices, allProd
       </div>
 
       {/* Image lightbox */}
-      {lightbox && product.image && (
+      {lightbox && modalShowImage && (
         <div
           className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 cursor-zoom-out"
           onClick={() => setLightbox(false)}
