@@ -54,6 +54,18 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // ── TEMP diagnostic: test a minimal blob write ────────────────────────────
+  if (req.method === 'GET' && req.query.diagwrite === '1') {
+    try {
+      await put('dopha/diag-test.json', JSON.stringify({ ok: true, ts: Date.now() }), {
+        access: 'public', addRandomSuffix: false, contentType: 'application/json', cacheControlMaxAge: 0,
+      });
+      return res.status(200).json({ blobWrite: 'ok' });
+    } catch (e) {
+      return res.status(500).json({ blobWrite: 'failed', error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   // ── GET ── poll messages ──────────────────────────────────────────────────
   if (req.method === 'GET') {
     const { session, staff, password } = req.query as Record<string, string>;
@@ -81,16 +93,24 @@ export default async function handler(req: any, res: any) {
   // ── POST ── send message ──────────────────────────────────────────────────
   if (req.method === 'POST') {
     try {
+      // Step 1: parse body
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const { sessionId, text, password } = req.body ?? {};
+      const body = typeof req.body === 'string'
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        ? JSON.parse(req.body)
+        : (req.body ?? {});
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const { sessionId, text, password } = body;
 
       if (!sessionId || !String(text ?? '').trim()) {
-        return res.status(400).json({ error: 'Missing required fields' });
+        return res.status(400).json({ error: 'Missing required fields', bodyType: typeof req.body });
       }
 
+      // Step 2: read existing store
       const isStaff = password === ADMIN_PASS;
       const store   = await readChats();
 
+      // Step 3: add session & message
       if (!store.sessions[sessionId]) {
         store.sessions[sessionId] = {
           sessionId,
@@ -100,7 +120,6 @@ export default async function handler(req: any, res: any) {
           unreadByStaff: true,
         };
       }
-
       const sess = store.sessions[sessionId];
       const msg: ChatMessage = {
         id:   `${isStaff ? 's' : 'u'}-${Date.now()}`,
@@ -108,17 +127,25 @@ export default async function handler(req: any, res: any) {
         from: isStaff ? 'staff' : 'user',
         time: new Date().toISOString(),
       };
-
       sess.messages.push(msg);
       sess.lastActivity  = new Date().toISOString();
       sess.unreadByStaff = !isStaff;
 
-      await writeChats(store);
+      // Step 4: write — verify JSON is valid before sending
+      const serialized = JSON.stringify(store);
+      await put(BLOB_PATH, serialized, {
+        access:             'public',
+        addRandomSuffix:    false,
+        contentType:        'application/json',
+        cacheControlMaxAge: 0,
+      });
+
       return res.status(200).json({ success: true, message: msg });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error('Chat POST error:', msg);
-      return res.status(500).json({ error: msg });
+      const errMsg = e instanceof Error ? e.message : String(e);
+      const stack  = e instanceof Error ? e.stack?.split('\n').slice(0, 3).join(' | ') : '';
+      console.error('Chat POST error:', errMsg, stack);
+      return res.status(500).json({ error: errMsg, stack });
     }
   }
 
