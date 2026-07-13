@@ -54,15 +54,18 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // ── TEMP diagnostic: test a minimal blob write ────────────────────────────
-  if (req.method === 'GET' && req.query.diagwrite === '1') {
+  // ── TEMP diagnostic ───────────────────────────────────────────────────────
+  if (req.method === 'GET' && req.query.diag === '1') {
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    const tokenPresent = !!token;
+    const tokenLen = token ? token.length : 0;
     try {
       await put('dopha/diag-test.json', JSON.stringify({ ok: true, ts: Date.now() }), {
         access: 'public', addRandomSuffix: false, contentType: 'application/json', cacheControlMaxAge: 0,
       });
-      return res.status(200).json({ blobWrite: 'ok' });
+      return res.status(200).json({ blobWrite: 'ok', tokenPresent, tokenLen });
     } catch (e) {
-      return res.status(500).json({ blobWrite: 'failed', error: e instanceof Error ? e.message : String(e) });
+      return res.status(500).json({ blobWrite: 'failed', tokenPresent, tokenLen, error: e instanceof Error ? e.message : String(e) });
     }
   }
 
