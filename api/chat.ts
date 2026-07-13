@@ -80,40 +80,46 @@ export default async function handler(req: any, res: any) {
 
   // ── POST ── send message ──────────────────────────────────────────────────
   if (req.method === 'POST') {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { sessionId, text, password } = req.body ?? {};
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const { sessionId, text, password } = req.body ?? {};
 
-    if (!sessionId || !String(text ?? '').trim()) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+      if (!sessionId || !String(text ?? '').trim()) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
 
-    const isStaff = password === ADMIN_PASS;
-    const store   = await readChats();
+      const isStaff = password === ADMIN_PASS;
+      const store   = await readChats();
 
-    if (!store.sessions[sessionId]) {
-      store.sessions[sessionId] = {
-        sessionId,
-        messages:      [],
-        createdAt:     new Date().toISOString(),
-        lastActivity:  new Date().toISOString(),
-        unreadByStaff: true,
+      if (!store.sessions[sessionId]) {
+        store.sessions[sessionId] = {
+          sessionId,
+          messages:      [],
+          createdAt:     new Date().toISOString(),
+          lastActivity:  new Date().toISOString(),
+          unreadByStaff: true,
+        };
+      }
+
+      const sess = store.sessions[sessionId];
+      const msg: ChatMessage = {
+        id:   `${isStaff ? 's' : 'u'}-${Date.now()}`,
+        text: String(text).trim(),
+        from: isStaff ? 'staff' : 'user',
+        time: new Date().toISOString(),
       };
+
+      sess.messages.push(msg);
+      sess.lastActivity  = new Date().toISOString();
+      sess.unreadByStaff = !isStaff;
+
+      await writeChats(store);
+      return res.status(200).json({ success: true, message: msg });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('Chat POST error:', msg);
+      return res.status(500).json({ error: msg });
     }
-
-    const sess = store.sessions[sessionId];
-    const msg: ChatMessage = {
-      id:   `${isStaff ? 's' : 'u'}-${Date.now()}`,
-      text: String(text).trim(),
-      from: isStaff ? 'staff' : 'user',
-      time: new Date().toISOString(),
-    };
-
-    sess.messages.push(msg);
-    sess.lastActivity  = new Date().toISOString();
-    sess.unreadByStaff = !isStaff; // staff reply clears the flag
-
-    await writeChats(store);
-    return res.status(200).json({ success: true, message: msg });
   }
 
   // ── PATCH ── mark session read by staff ───────────────────────────────────
