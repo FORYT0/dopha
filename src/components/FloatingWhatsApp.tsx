@@ -148,7 +148,7 @@ export default function FloatingWhatsApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ── Real-time Firestore listener for staff replies ────────────────────────
+  // ── Real-time Firestore listener — full history source of truth ──────────
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -156,24 +156,41 @@ export default function FloatingWhatsApp() {
     const docRef = doc(db, 'chats', sessionId);
     const unsub  = onSnapshot(docRef, (snap) => {
       if (!snap.exists()) return;
-      const data = snap.data() as { messages?: FirestoreMessage[] };
-      const staffMsgs = (data.messages ?? []).filter(m => m.from === 'staff');
-      const newOnes   = staffMsgs.filter(m => !seenStaffIds.current.has(m.id));
+      const data    = snap.data() as { messages?: FirestoreMessage[] };
+      const allMsgs = (data.messages ?? []).slice().sort(
+        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
+      );
 
-      if (newOnes.length === 0) return;
+      setMessages(prev => {
+        // Keep greeting (isLocal) and any messages still in-flight (status: 'sending')
+        const localOnly  = prev.filter(m => m.isLocal);
+        const inFlight   = prev.filter(m => !m.isLocal && m.from === 'user' && m.status === 'sending');
 
-      newOnes.forEach(m => seenStaffIds.current.add(m.id));
+        const fromStore: Message[] = allMsgs.map(m => ({
+          id:     m.id,
+          text:   m.text,
+          from:   m.from === 'staff' ? ('shop' as const) : ('user' as const),
+          time:   m.time,
+          status: 'read' as MsgStatus,
+        }));
 
-      const incoming: Message[] = newOnes.map(m => ({
-        id:     m.id,
-        text:   m.text,
-        from:   'shop',
-        time:   m.time,
-        status: 'read',
-      }));
+        const storeIds    = new Set(fromStore.map(m => m.id));
+        const stillFlying = inFlight.filter(m => !storeIds.has(m.id));
 
-      setMessages(prev => [...prev, ...incoming]);
-      if (!openRef.current) setUnread(n => n + newOnes.length);
+        return [
+          ...localOnly,
+          ...fromStore,
+          ...stillFlying,
+        ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+      });
+
+      // Unread badge: count new staff messages while chat is closed
+      const newStaff = allMsgs
+        .filter(m => m.from === 'staff' && !seenStaffIds.current.has(m.id));
+      if (newStaff.length > 0) {
+        newStaff.forEach(m => seenStaffIds.current.add(m.id));
+        if (!openRef.current) setUnread(n => n + newStaff.length);
+      }
     });
 
     return () => unsub();

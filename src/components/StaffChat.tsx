@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, MessageSquare, RefreshCw, User } from 'lucide-react';
+import { X, Send, MessageSquare, RefreshCw } from 'lucide-react';
 import { collection, doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -26,6 +26,30 @@ function formatTime(iso: string) {
   return d.toDateString() === now.toDateString()
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+/** Use the customer's first message as the session title. */
+function sessionTitle(session: ChatSession): string {
+  const first = session.messages.find(m => m.from === 'user');
+  if (first) return first.text;
+  return `Visitor ${session.sessionId.slice(0, 6).toUpperCase()}`;
+}
+
+/** Derive a consistent color from the session ID. */
+function sessionColor(sessionId: string): string {
+  const palette = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#DDA0DD','#F0A500','#7EC8E3','#B5936A'];
+  let h = 0;
+  for (const c of sessionId) h = (h * 31 + c.charCodeAt(0)) & 0xfffffff;
+  return palette[h % palette.length];
 }
 
 function lastMsg(session: ChatSession): string {
@@ -165,12 +189,18 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                   selected === sess.sessionId ? 'bg-white border-l-2 border-l-[var(--teal)]' : ''
                 }`}
               >
-                <div className="shrink-0 w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User size={18} className="text-gray-400" />
+                {/* Unique colored avatar per visitor */}
+                <div
+                  className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  style={{ background: sessionColor(sess.sessionId) }}
+                >
+                  {sess.sessionId.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-sm font-semibold text-gray-800 truncate">Customer</span>
+                    <span className="text-sm font-semibold text-gray-800 truncate">
+                      {sessionTitle(sess).slice(0, 28)}{sessionTitle(sess).length > 28 ? '…' : ''}
+                    </span>
                     <span className="text-[10px] text-gray-400 shrink-0 ml-1">{formatTime(sess.lastActivity)}</span>
                   </div>
                   <p className="text-xs text-gray-500 truncate">{lastMsg(sess)}</p>
@@ -190,10 +220,19 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                 <button onClick={() => setSelected(null)} className="sm:hidden p-1 hover:bg-white/10 rounded-full">
                   <X size={16} />
                 </button>
-                <div className="w-8 h-8 rounded-full bg-[#128C7E] flex items-center justify-center text-xs font-bold">C</div>
-                <div>
-                  <p className="text-sm font-semibold">Customer</p>
-                  <p className="text-[11px] text-green-300">{selectedSession.messages.length} messages</p>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  style={{ background: sessionColor(selectedSession.sessionId) }}
+                >
+                  {selectedSession.sessionId.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">
+                    {sessionTitle(selectedSession).slice(0, 35)}{sessionTitle(selectedSession).length > 35 ? '…' : ''}
+                  </p>
+                  <p className="text-[11px] text-green-300">
+                    #{selectedSession.sessionId.slice(0, 8)} · started {timeAgo(selectedSession.createdAt ?? selectedSession.lastActivity)}
+                  </p>
                 </div>
               </div>
 
