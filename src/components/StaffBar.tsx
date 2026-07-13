@@ -1,13 +1,32 @@
-import { useState } from 'react';
-import { ShieldCheck, LogOut, Plus, RotateCcw, EyeOff, Eye, Save, Check, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ShieldCheck, LogOut, Plus, RotateCcw, EyeOff, Eye, Save, Check, Loader2, MessageSquare } from 'lucide-react';
 import { useStaff } from '../context/StaffContext';
 import AddProductModal from './AddProductModal';
+import StaffChat from './StaffChat';
 
 export default function StaffBar() {
   const { logout, resetProducts, hidePrices, toggleHidePrices, isDirty, isSaving, saveAll } = useStaff();
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd,          setShowAdd]          = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
+  const [justSaved,        setJustSaved]        = useState(false);
+  const [showChat,         setShowChat]         = useState(false);
+  const [chatUnread,       setChatUnread]       = useState(0);
+
+  // Poll for unread chat count every 8 seconds
+  const fetchUnread = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/chat?staff=1&password=dopha2025');
+      if (!res.ok) return;
+      const data = await res.json() as { sessions: Array<{ unreadByStaff: boolean }> };
+      setChatUnread(data.sessions.filter(s => s.unreadByStaff).length);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchUnread();
+    const t = setInterval(fetchUnread, 8000);
+    return () => clearInterval(t);
+  }, [fetchUnread]);
 
   const handleReset = () => {
     if (showConfirmReset) { resetProducts(); setShowConfirmReset(false); }
@@ -38,6 +57,21 @@ export default function StaffBar() {
 
           {/* Right actions */}
           <div className="flex items-center gap-1">
+            {/* Live Chats */}
+            <button
+              onClick={() => setShowChat(true)}
+              className="relative flex items-center gap-1.5 px-3 py-1 rounded-md hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition-colors"
+              title="Live customer chats"
+            >
+              <MessageSquare size={12} />
+              <span className="hidden sm:inline">Chats</span>
+              {chatUnread > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                  {chatUnread}
+                </span>
+              )}
+            </button>
+
             {/* Add Product */}
             <button
               onClick={() => setShowAdd(true)}
@@ -110,6 +144,14 @@ export default function StaffBar() {
       </div>
 
       {showAdd && <AddProductModal onClose={() => setShowAdd(false)} />}
+
+      {showChat && (
+        <StaffChat
+          onClose={() => { setShowChat(false); fetchUnread(); }}
+          initialUnread={chatUnread}
+          onUnreadChange={setChatUnread}
+        />
+      )}
     </>
   );
 }
