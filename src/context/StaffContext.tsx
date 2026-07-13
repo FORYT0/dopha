@@ -49,7 +49,7 @@ export const DEFAULT_CONTENT: SiteContent = {
   heroCta2:      'Project Lab',
   ctaTitle:      'Ready to Build Something Amazing?',
   ctaSubtitle:   'Join thousands of students and engineering professionals who trust Dopha Electronics for their projects.',
-  whatsapp:      '+2547XXXXXXXX',
+  whatsapp:      '+254712743428',
 };
 
 interface StaffContextType {
