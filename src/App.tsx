@@ -12,6 +12,7 @@ import ProjectLabPage from './pages/ProjectLabPage'
 import AboutPage from './pages/AboutPage'
 import VisualGuidePage from './pages/VisualGuidePage'
 import { useStaff } from './context/StaffContext'
+import FloatingWhatsApp from './components/FloatingWhatsApp'
 
 function AppShell() {
   const { isStaff } = useStaff();
@@ -22,6 +23,7 @@ function AppShell() {
         <Navbar />
         <CartSidebar />
         <Toast />
+        <FloatingWhatsApp />
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
