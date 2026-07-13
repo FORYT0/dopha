@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { ShieldCheck, LogOut, Plus, RotateCcw, EyeOff, Eye, Save, Check, Loader2, MessageSquare } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useStaff } from '../context/StaffContext';
 import AddProductModal from './AddProductModal';
 import StaffChat from './StaffChat';
@@ -12,21 +14,14 @@ export default function StaffBar() {
   const [showChat,         setShowChat]         = useState(false);
   const [chatUnread,       setChatUnread]       = useState(0);
 
-  // Poll for unread chat count every 8 seconds
-  const fetchUnread = useCallback(async () => {
-    try {
-      const res  = await fetch('/api/chat?staff=1&password=dopha2025');
-      if (!res.ok) return;
-      const data = await res.json() as { sessions: Array<{ unreadByStaff: boolean }> };
-      setChatUnread(data.sessions.filter(s => s.unreadByStaff).length);
-    } catch {}
-  }, []);
-
+  // Real-time unread count from Firestore
   useEffect(() => {
-    fetchUnread();
-    const t = setInterval(fetchUnread, 8000);
-    return () => clearInterval(t);
-  }, [fetchUnread]);
+    const unsub = onSnapshot(collection(db, 'chats'), (snap) => {
+      const unread = snap.docs.filter(d => (d.data() as { unreadByStaff?: boolean }).unreadByStaff).length;
+      setChatUnread(unread);
+    });
+    return () => unsub();
+  }, []);
 
   const handleReset = () => {
     if (showConfirmReset) { resetProducts(); setShowConfirmReset(false); }
@@ -147,7 +142,7 @@ export default function StaffBar() {
 
       {showChat && (
         <StaffChat
-          onClose={() => { setShowChat(false); fetchUnread(); }}
+          onClose={() => setShowChat(false)}
           initialUnread={chatUnread}
           onUnreadChange={setChatUnread}
         />

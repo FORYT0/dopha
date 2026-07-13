@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Check, CheckCheck, RefreshCw } from 'lucide-react';
+import { doc, setDoc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 // ── WhatsApp brand colours ──────────────────────────────────────────────────
 const WA_DARK       = '#075E54';
@@ -18,7 +20,14 @@ interface Message {
   from:     'user' | 'shop';
   time:     string;
   status:   MsgStatus;
-  isLocal?: boolean; // greeting / system messages — never sent to API
+  isLocal?: boolean; // greeting / system messages — never sent to Firestore
+}
+
+interface FirestoreMessage {
+  id:   string;
+  text: string;
+  from: 'user' | 'staff';
+  time: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,14 +120,13 @@ export default function FloatingWhatsApp() {
   const [unread,    setUnread]    = useState(0);
   const [sending,   setSending]   = useState(false);
 
-  // Track which staff message IDs we've already shown (to avoid duplicates on poll)
+  // Track which staff message IDs we've already added (avoids duplicates from snapshot)
   const seenStaffIds = useRef<Set<string>>(
     new Set(initialData.current.messages.filter(m => m.from === 'shop' && !m.isLocal).map(m => m.id)),
   );
 
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Persist to localStorage on every message change ───────────────────────
   useEffect(() => {
@@ -140,15 +148,16 @@ export default function FloatingWhatsApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ── Polling for staff replies ─────────────────────────────────────────────
-  const poll = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const res  = await fetch(`/api/chat?session=${sessionId}`);
-      if (!res.ok) return;
-      const data = await res.json() as { messages: Array<{ id: string; text: string; from: string; time: string }> };
+  // ── Real-time Firestore listener for staff replies ────────────────────────
+  const openRef = useRef(open);
+  openRef.current = open;
 
-      const staffMsgs = data.messages.filter(m => m.from === 'staff');
+  useEffect(() => {
+    const docRef = doc(db, 'chats', sessionId);
+    const unsub  = onSnapshot(docRef, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as { messages?: FirestoreMessage[] };
+      const staffMsgs = (data.messages ?? []).filter(m => m.from === 'staff');
       const newOnes   = staffMsgs.filter(m => !seenStaffIds.current.has(m.id));
 
       if (newOnes.length === 0) return;
@@ -164,18 +173,11 @@ export default function FloatingWhatsApp() {
       }));
 
       setMessages(prev => [...prev, ...incoming]);
-      if (!open) setUnread(n => n + newOnes.length);
-    } catch {
-      // silently ignore network errors
-    }
-  }, [sessionId, open]);
+      if (!openRef.current) setUnread(n => n + newOnes.length);
+    });
 
-  // Start/stop polling when the chat is mounted (always poll so badge updates)
-  useEffect(() => {
-    poll(); // immediate first check
-    pollRef.current = setInterval(poll, 3000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [poll]);
+    return () => unsub();
+  }, [sessionId]);
 
   // ── Scroll to bottom ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -192,13 +194,20 @@ export default function FloatingWhatsApp() {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
 
-    const tempId  = genId('u');
+    const msgId    = genId('u');
+    const now      = new Date().toISOString();
     const userMsg: Message = {
-      id:     tempId,
+      id:     msgId,
       text:   trimmed,
       from:   'user',
-      time:   new Date().toISOString(),
+      time:   now,
       status: 'sending',
+    };
+    const firestoreMsg: FirestoreMessage = {
+      id:   msgId,
+      text: trimmed,
+      from: 'user',
+      time: now,
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -206,29 +215,28 @@ export default function FloatingWhatsApp() {
     setSending(true);
 
     try {
-      const res = await fetch('/api/chat', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ sessionId, text: trimmed }),
-      });
-
-      if (res.ok) {
-        const data = await res.json() as { message: { id: string } };
-        // Update temp message: swap id + mark delivered
-        setMessages(prev => prev.map(m =>
-          m.id === tempId
-            ? { ...m, id: data.message.id, status: 'delivered' }
-            : m,
-        ));
-      } else {
-        setMessages(prev => prev.map(m =>
-          m.id === tempId ? { ...m, status: 'failed' } : m,
-        ));
+      const docRef = doc(db, 'chats', sessionId);
+      try {
+        // Document already exists — append
+        await updateDoc(docRef, {
+          messages:      arrayUnion(firestoreMsg),
+          lastActivity:  now,
+          unreadByStaff: true,
+        });
+      } catch {
+        // Document doesn't exist yet — create it (first message)
+        await setDoc(docRef, {
+          sessionId,
+          messages:      [firestoreMsg],
+          createdAt:     now,
+          lastActivity:  now,
+          unreadByStaff: true,
+        });
       }
+      // Mark as delivered
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'delivered' } : m));
     } catch {
-      setMessages(prev => prev.map(m =>
-        m.id === tempId ? { ...m, status: 'failed' } : m,
-      ));
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'failed' } : m));
     } finally {
       setSending(false);
     }
@@ -239,7 +247,6 @@ export default function FloatingWhatsApp() {
     setMessages([]);
     seenStaffIds.current.clear();
     try { localStorage.removeItem(STORE_KEY); } catch {}
-    // Generate fresh session by reloading page (simplest)
     window.location.reload();
   }, []);
 

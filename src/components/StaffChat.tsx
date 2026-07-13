@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, MessageSquare, RefreshCw, User } from 'lucide-react';
-
-const ADMIN_PASS = 'dopha2025';
+import { collection, doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 // ── Types ───────────────────────────────────────────────────────────────────
-interface BackendMessage {
+interface FirestoreMessage {
   id:   string;
   text: string;
   from: 'user' | 'staff';
@@ -12,19 +12,18 @@ interface BackendMessage {
 }
 
 interface ChatSession {
-  sessionId:      string;
-  messages:       BackendMessage[];
-  createdAt:      string;
-  lastActivity:   string;
-  unreadByStaff:  boolean;
+  sessionId:     string;
+  messages:      FirestoreMessage[];
+  createdAt:     string;
+  lastActivity:  string;
+  unreadByStaff: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(iso: string) {
-  const d = new Date(iso);
+  const d   = new Date(iso);
   const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  return sameDay
+  return d.toDateString() === now.toDateString()
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
@@ -35,59 +34,52 @@ function lastMsg(session: ChatSession): string {
   return (m.from === 'staff' ? 'You: ' : '') + m.text.slice(0, 60) + (m.text.length > 60 ? '…' : '');
 }
 
+function genId(prefix = 's') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 // ── Props ────────────────────────────────────────────────────────────────────
 interface Props {
-  onClose:      () => void;
-  initialUnread: number;
+  onClose:        () => void;
+  initialUnread:  number;
   onUnreadChange: (count: number) => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function StaffChat({ onClose, onUnreadChange }: Props) {
-  const [sessions,  setSessions]  = useState<ChatSession[]>([]);
-  const [selected,  setSelected]  = useState<string | null>(null);
-  const [reply,     setReply]     = useState('');
-  const [sending,   setSending]   = useState(false);
-  const [loading,   setLoading]   = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const endRef      = useRef<HTMLDivElement>(null);
-  const inputRef    = useRef<HTMLInputElement>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [reply,    setReply]    = useState('');
+  const [sending,  setSending]  = useState(false);
+  const [loading,  setLoading]  = useState(true);
+  const endRef   = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Fetch all sessions ─────────────────────────────────────────────────
-  const fetchSessions = useCallback(async () => {
-    try {
-      const res  = await fetch(`/api/chat?staff=1&password=${ADMIN_PASS}`);
-      if (!res.ok) return;
-      const data = await res.json() as { sessions: ChatSession[] };
-      setSessions(data.sessions);
-      const unreadCount = data.sessions.filter(s => s.unreadByStaff).length;
-      onUnreadChange(unreadCount);
-    } catch {}
-    setLoading(false);
+  // ── Real-time listener on all chat sessions ───────────────────────────────
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'chats'), (snapshot) => {
+      const all: ChatSession[] = snapshot.docs
+        .map(d => d.data() as ChatSession)
+        .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+
+      setSessions(all);
+      onUnreadChange(all.filter(s => s.unreadByStaff).length);
+      setLoading(false);
+    });
+
+    return () => unsub();
   }, [onUnreadChange]);
 
-  // Poll every 4 seconds
-  useEffect(() => {
-    fetchSessions();
-    intervalRef.current = setInterval(fetchSessions, 4000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [fetchSessions]);
-
-  // Mark session as read when selected
+  // Mark session read when opened
   useEffect(() => {
     if (!selected) return;
     const sess = sessions.find(s => s.sessionId === selected);
-    if (sess?.unreadByStaff) {
-      fetch('/api/chat', {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ sessionId: selected, password: ADMIN_PASS }),
-      }).catch(() => {});
-    }
+    if (!sess?.unreadByStaff) return;
+    updateDoc(doc(db, 'chats', selected), { unreadByStaff: false }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-  // Scroll chat to bottom when messages change
+  // Scroll to bottom when messages change
   const selectedSession = sessions.find(s => s.sessionId === selected);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -98,26 +90,37 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
     if (selected) setTimeout(() => inputRef.current?.focus(), 100);
   }, [selected]);
 
-  // ── Send reply ────────────────────────────────────────────────────────
+  // ── Send reply ────────────────────────────────────────────────────────────
   const sendReply = useCallback(async () => {
     const text = reply.trim();
     if (!text || !selected || sending) return;
     setSending(true);
     setReply('');
-    try {
-      await fetch('/api/chat', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ sessionId: selected, text, password: ADMIN_PASS }),
-      });
-      await fetchSessions(); // refresh immediately
-    } catch {}
-    setSending(false);
-  }, [reply, selected, sending, fetchSessions]);
 
-  // ── Render ────────────────────────────────────────────────────────────
+    const msg: FirestoreMessage = {
+      id:   genId('s'),
+      text,
+      from: 'staff',
+      time: new Date().toISOString(),
+    };
+
+    try {
+      await updateDoc(doc(db, 'chats', selected), {
+        messages:      arrayUnion(msg),
+        lastActivity:  new Date().toISOString(),
+        unreadByStaff: false,
+      });
+    } catch {}
+
+    setSending(false);
+  }, [reply, selected, sending]);
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-[70] flex items-stretch bg-black/40 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="fixed inset-0 z-[70] flex items-stretch bg-black/40 backdrop-blur-sm"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="ml-auto w-full max-w-3xl flex flex-col bg-white shadow-2xl h-full" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -131,14 +134,9 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={fetchSessions} title="Refresh" className="p-1.5 hover:bg-white/10 rounded-full transition-colors">
-              <RefreshCw size={15} className="text-white/70" />
-            </button>
-            <button onClick={onClose} title="Close" className="p-1.5 hover:bg-white/10 rounded-full transition-colors">
-              <X size={18} className="text-white/70" />
-            </button>
-          </div>
+          <button onClick={onClose} title="Close" className="p-1.5 hover:bg-white/10 rounded-full transition-colors">
+            <X size={18} className="text-white/70" />
+          </button>
         </div>
 
         <div className="flex flex-1 min-h-0">
@@ -167,23 +165,16 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                   selected === sess.sessionId ? 'bg-white border-l-2 border-l-[var(--teal)]' : ''
                 }`}
               >
-                {/* Avatar */}
                 <div className="shrink-0 w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                   <User size={18} className="text-gray-400" />
                 </div>
-
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-sm font-semibold text-gray-800 truncate">
-                      Customer
-                    </span>
-                    <span className="text-[10px] text-gray-400 shrink-0 ml-1">
-                      {formatTime(sess.lastActivity)}
-                    </span>
+                    <span className="text-sm font-semibold text-gray-800 truncate">Customer</span>
+                    <span className="text-[10px] text-gray-400 shrink-0 ml-1">{formatTime(sess.lastActivity)}</span>
                   </div>
                   <p className="text-xs text-gray-500 truncate">{lastMsg(sess)}</p>
                 </div>
-
                 {sess.unreadByStaff && (
                   <span className="shrink-0 w-2 h-2 rounded-full bg-[var(--teal)] mt-2" />
                 )}
@@ -196,10 +187,7 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
             <div className="flex-1 flex flex-col min-h-0 bg-[#ECE5DD]">
               {/* Thread header */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-[#075E54] text-white">
-                <button
-                  onClick={() => setSelected(null)}
-                  className="sm:hidden p-1 hover:bg-white/10 rounded-full"
-                >
+                <button onClick={() => setSelected(null)} className="sm:hidden p-1 hover:bg-white/10 rounded-full">
                   <X size={16} />
                 </button>
                 <div className="w-8 h-8 rounded-full bg-[#128C7E] flex items-center justify-center text-xs font-bold">C</div>
@@ -254,7 +242,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
               </div>
             </div>
           ) : (
-            // No session selected (desktop)
             <div className="hidden sm:flex flex-1 items-center justify-center bg-[#ECE5DD]">
               <div className="text-center text-gray-400">
                 <MessageSquare size={40} strokeWidth={1} className="mx-auto mb-2 opacity-40" />
