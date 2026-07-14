@@ -20,7 +20,7 @@ interface Message {
   from:     'user' | 'shop';
   time:     string;
   status:   MsgStatus;
-  isLocal?: boolean; // greeting / system messages — never sent to Firestore
+  isLocal?: boolean;
 }
 
 interface FirestoreMessage {
@@ -40,18 +40,19 @@ function genSessionId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/** Normalize phone → consistent session key regardless of format entered. */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('254')) return digits;
+  if (digits.startsWith('0') && digits.length >= 9) return '254' + digits.slice(1);
+  if (digits.length >= 9) return '254' + digits.slice(-9);
+  return digits;
+}
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
-const GREETING: Message = {
-  id:      'greeting',
-  text:    "👋 Hi! Welcome to Dopha Electronics.\n\nWe have 140+ components in stock — Arduino, sensors, resistors, capacitors, displays, modules and more.\n\nWhat can we help you with today?",
-  from:    'shop',
-  time:    new Date().toISOString(),
-  status:  'read',
-  isLocal: true,
-};
 
 const QUICK_REPLIES = [
   '📦 Is a specific item in stock?',
@@ -69,18 +70,14 @@ function WAIcon({ size = 28 }: { size?: number }) {
   );
 }
 
-// Typing dots animation
 function TypingDots() {
   return (
     <div className="flex justify-start">
       <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
         <div className="flex gap-1 items-center h-4">
           {[0, 180, 360].map(d => (
-            <span
-              key={d}
-              className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
-              style={{ animationDelay: `${d}ms`, animationDuration: '1s' }}
-            />
+            <span key={d} className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+              style={{ animationDelay: `${d}ms`, animationDuration: '1s' }} />
           ))}
         </div>
       </div>
@@ -88,12 +85,14 @@ function TypingDots() {
   );
 }
 
-// ── Persistence helpers ──────────────────────────────────────────────────────
+// ── Persistence ───────────────────────────────────────────────────────────────
 const STORE_KEY = 'dopha_chat_v2';
 
 interface StoredChat {
-  sessionId: string;
-  messages:  Message[];
+  sessionId:     string;
+  customerName:  string;
+  customerPhone: string;
+  messages:      Message[];
 }
 
 function loadStored(): StoredChat {
@@ -101,60 +100,160 @@ function loadStored(): StoredChat {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) return JSON.parse(raw) as StoredChat;
   } catch {}
-  return { sessionId: genSessionId(), messages: [] };
+  return { sessionId: genSessionId(), customerName: '', customerPhone: '', messages: [] };
 }
 
 function saveStored(data: StoredChat) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch {}
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Start-chat form ───────────────────────────────────────────────────────────
+interface StartFormProps {
+  onSubmit: (name: string, phone: string) => void;
+}
+
+function StartForm({ onSubmit }: StartFormProps) {
+  const [name,  setName]  = useState('');
+  const [phone, setPhone] = useState('');
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { nameRef.current?.focus(); }, []);
+
+  const submit = () => {
+    if (name.trim().length < 2) return;
+    onSubmit(name.trim(), phone.trim());
+  };
+
+  return (
+    <div className="flex-1 flex flex-col justify-center px-5 py-6 gap-4" style={{ background: WA_BG }}>
+      {/* Welcome card */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-lg font-bold" style={{ background: WA_LIGHT }}>
+          DE
+        </div>
+        <p className="font-semibold text-gray-800">Dopha Electronics</p>
+        <p className="text-xs text-gray-500 mt-1">Tell us a bit about yourself so our team can help you personally.</p>
+      </div>
+
+      {/* Fields */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">Your name *</label>
+          <input
+            ref={nameRef}
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="e.g. John"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-green-400 transition-colors"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">
+            WhatsApp / Phone
+            <span className="ml-1 font-normal text-gray-400">(optional)</span>
+          </label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="e.g. 0712 743 428"
+            className="w-full rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-green-400 transition-colors"
+          />
+          <p className="text-[10px] text-gray-400 mt-1">
+            Enter your number to restore this chat from any device later.
+          </p>
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={name.trim().length < 2}
+          className="w-full py-2.5 rounded-full text-sm font-semibold text-white transition-all disabled:opacity-40"
+          style={{ background: WA_GREEN }}
+        >
+          Start Chat
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function FloatingWhatsApp() {
-  const initialData = useRef(loadStored());
+  const initial = useRef(loadStored());
 
-  const [sessionId] = useState<string>(initialData.current.sessionId);
-  const [messages,  setMessages]  = useState<Message[]>(initialData.current.messages);
-  const [open,      setOpen]      = useState(false);
-  const [input,     setInput]     = useState('');
-  const [typing,    setTyping]    = useState(false);
-  const [unread,    setUnread]    = useState(0);
-  const [sending,   setSending]   = useState(false);
+  const [sessionId,     setSessionId]     = useState(initial.current.sessionId);
+  const [customerName,  setCustomerName]  = useState(initial.current.customerName);
+  const [customerPhone, setCustomerPhone] = useState(initial.current.customerPhone);
+  const [messages,      setMessages]      = useState<Message[]>(initial.current.messages);
+  const [open,          setOpen]          = useState(false);
+  const [input,         setInput]         = useState('');
+  const [typing,        setTyping]        = useState(false);
+  const [unread,        setUnread]        = useState(0);
+  const [sending,       setSending]       = useState(false);
 
-  // Track which staff message IDs we've already added (avoids duplicates from snapshot)
+  const hasIdentity = customerName.length > 0;
+
+  // IDs of staff messages already shown (prevent duplicates & track for badge)
   const seenStaffIds = useRef<Set<string>>(
-    new Set(initialData.current.messages.filter(m => m.from === 'shop' && !m.isLocal).map(m => m.id)),
+    new Set(initial.current.messages.filter(m => m.from === 'shop' && !m.isLocal).map(m => m.id)),
   );
 
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Persist to localStorage on every message change ───────────────────────
+  // ── Persist everything to localStorage ───────────────────────────────────
   useEffect(() => {
-    saveStored({ sessionId, messages });
-  }, [sessionId, messages]);
+    saveStored({ sessionId, customerName, customerPhone, messages });
+  }, [sessionId, customerName, customerPhone, messages]);
 
-  // ── Greeting on first open ────────────────────────────────────────────────
+  // ── Handle form submit ────────────────────────────────────────────────────
+  const handleStartChat = useCallback((name: string, phone: string) => {
+    const normalized = normalizePhone(phone);
+    // Phone-based session ID allows cross-device restoration
+    const sid = normalized ? `ph-${normalized}` : genSessionId();
+    setCustomerName(name);
+    setCustomerPhone(normalized);
+    setSessionId(sid);
+    setMessages([]);
+    seenStaffIds.current.clear();
+  }, []);
+
+  // ── Greeting after identity is set + chat opens ───────────────────────────
+  const prevOpen = useRef(false);
   useEffect(() => {
-    if (!open) { setUnread(0); return; }
+    if (!open) { setUnread(0); prevOpen.current = false; return; }
     setUnread(0);
+    if (prevOpen.current) return; // already shown greeting this session
+    prevOpen.current = true;
+    if (!hasIdentity) return; // wait for form
     if (messages.length === 0) {
       setTyping(true);
       const t = setTimeout(() => {
         setTyping(false);
-        setMessages([{ ...GREETING, time: new Date().toISOString() }]);
-      }, 1500);
+        setMessages([{
+          id:      'greeting',
+          text:    `👋 Hi ${customerName}! Welcome to Dopha Electronics.\n\nWe have 140+ components in stock — Arduino, sensors, resistors, capacitors, displays, modules and more.\n\nWhat can we help you with today?`,
+          from:    'shop',
+          time:    new Date().toISOString(),
+          status:  'read',
+          isLocal: true,
+        }]);
+      }, 1200);
       return () => clearTimeout(t);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, hasIdentity]);
 
-  // ── Real-time Firestore listener — full history source of truth ──────────
+  // ── Firestore real-time listener ──────────────────────────────────────────
   const openRef = useRef(open);
   openRef.current = open;
 
   useEffect(() => {
-    const docRef = doc(db, 'chats', sessionId);
-    const unsub  = onSnapshot(docRef, (snap) => {
+    if (!hasIdentity) return; // don't listen before identity set
+    const unsub = onSnapshot(doc(db, 'chats', sessionId), (snap) => {
       if (!snap.exists()) return;
       const data    = snap.data() as { messages?: FirestoreMessage[] };
       const allMsgs = (data.messages ?? []).slice().sort(
@@ -162,10 +261,8 @@ export default function FloatingWhatsApp() {
       );
 
       setMessages(prev => {
-        // Keep greeting (isLocal) and any messages still in-flight (status: 'sending')
-        const localOnly  = prev.filter(m => m.isLocal);
-        const inFlight   = prev.filter(m => !m.isLocal && m.from === 'user' && m.status === 'sending');
-
+        const localOnly = prev.filter(m => m.isLocal);
+        const inFlight  = prev.filter(m => !m.isLocal && m.from === 'user' && m.status === 'sending');
         const fromStore: Message[] = allMsgs.map(m => ({
           id:     m.id,
           text:   m.text,
@@ -173,107 +270,83 @@ export default function FloatingWhatsApp() {
           time:   m.time,
           status: 'read' as MsgStatus,
         }));
-
         const storeIds    = new Set(fromStore.map(m => m.id));
         const stillFlying = inFlight.filter(m => !storeIds.has(m.id));
-
-        return [
-          ...localOnly,
-          ...fromStore,
-          ...stillFlying,
-        ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        return [...localOnly, ...fromStore, ...stillFlying]
+          .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
       });
 
-      // New staff messages: update badge OR auto-open chat
+      // Auto-open + badge for new staff messages
       const newStaff = allMsgs.filter(
         m => m.from === 'staff' && !seenStaffIds.current.has(m.id),
       );
       if (newStaff.length > 0) {
         newStaff.forEach(m => seenStaffIds.current.add(m.id));
         if (!openRef.current) {
-          // Auto-open if any new staff message is less than 24 h old
           const hasRecent = newStaff.some(
             m => Date.now() - new Date(m.time).getTime() < 24 * 60 * 60 * 1000,
           );
-          if (hasRecent) {
-            setOpen(true);   // chat pops open with the conversation
-          } else {
-            setUnread(n => n + newStaff.length); // older — just badge
-          }
+          if (hasRecent) setOpen(true);
+          else setUnread(n => n + newStaff.length);
         }
       }
     });
-
     return () => unsub();
-  }, [sessionId]);
+  }, [sessionId, hasIdentity]);
 
-  // ── Scroll to bottom ──────────────────────────────────────────────────────
+  // ── Scroll / focus ────────────────────────────────────────────────────────
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
 
-  // ── Focus input on open ───────────────────────────────────────────────────
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 120);
-  }, [open]);
+    if (open && hasIdentity) setTimeout(() => inputRef.current?.focus(), 120);
+  }, [open, hasIdentity]);
 
   // ── Send message ──────────────────────────────────────────────────────────
   const send = useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed || sending || !hasIdentity) return;
 
-    const msgId    = genId('u');
-    const now      = new Date().toISOString();
-    const userMsg: Message = {
-      id:     msgId,
-      text:   trimmed,
-      from:   'user',
-      time:   now,
-      status: 'sending',
-    };
-    const firestoreMsg: FirestoreMessage = {
-      id:   msgId,
-      text: trimmed,
-      from: 'user',
-      time: now,
-    };
+    const msgId = genId('u');
+    const now   = new Date().toISOString();
+    const fsMsg: FirestoreMessage = { id: msgId, text: trimmed, from: 'user', time: now };
+    const uiMsg: Message          = { id: msgId, text: trimmed, from: 'user', time: now, status: 'sending' };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [...prev, uiMsg]);
     setInput('');
     setSending(true);
 
     try {
       const docRef = doc(db, 'chats', sessionId);
       try {
-        // Document already exists — append
         await updateDoc(docRef, {
-          messages:      arrayUnion(firestoreMsg),
+          messages:      arrayUnion(fsMsg),
           lastActivity:  now,
           unreadByStaff: true,
         });
       } catch {
-        // Document doesn't exist yet — create it (first message)
+        // First message — create document with customer info
         await setDoc(docRef, {
           sessionId,
-          messages:      [firestoreMsg],
+          customerName,
+          customerPhone: customerPhone || null,
+          messages:      [fsMsg],
           createdAt:     now,
           lastActivity:  now,
           unreadByStaff: true,
         });
       }
-      // Mark as delivered
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'delivered' } : m));
     } catch {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'failed' } : m));
     } finally {
       setSending(false);
     }
-  }, [sending, sessionId]);
+  }, [sending, hasIdentity, sessionId, customerName, customerPhone]);
 
   // ── Clear chat ────────────────────────────────────────────────────────────
   const clearChat = useCallback(() => {
-    setMessages([]);
-    seenStaffIds.current.clear();
     try { localStorage.removeItem(STORE_KEY); } catch {}
     window.location.reload();
   }, []);
@@ -284,18 +357,18 @@ export default function FloatingWhatsApp() {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
 
-      {/* ── Chat card ─────────────────────────────────────────────────────── */}
+      {/* Chat card */}
       <div
         className="flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-black/5"
         style={{
-          width:          '360px',
-          height:         '520px',
-          maxWidth:       'calc(100vw - 1.5rem)',
-          background:     WA_BG,
+          width:           '360px',
+          height:          '520px',
+          maxWidth:        'calc(100vw - 1.5rem)',
+          background:      WA_BG,
           transformOrigin: 'bottom right',
-          transform:       open ? 'scale(1) translateY(0)'       : 'scale(0.85) translateY(20px)',
-          opacity:         open ? 1                               : 0,
-          pointerEvents:   open ? 'auto'                         : 'none',
+          transform:       open ? 'scale(1) translateY(0)' : 'scale(0.85) translateY(20px)',
+          opacity:         open ? 1 : 0,
+          pointerEvents:   open ? 'auto' : 'none',
           transition:      'transform 0.22s cubic-bezier(.22,1,.36,1), opacity 0.18s ease',
         }}
         aria-hidden={!open}
@@ -326,93 +399,95 @@ export default function FloatingWhatsApp() {
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2" style={{ background: WA_BG }}>
-          {/* Privacy badge */}
-          <div className="flex justify-center mb-2">
-            <span className="text-[10px] bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg px-3 py-1.5 text-center leading-snug max-w-[270px]">
-              🔒 Messages go directly to our team. We reply here in this chat.
-            </span>
-          </div>
-
-          {messages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${msg.from === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
-                style={{ background: msg.from === 'user' ? WA_BUBBLE_OUT : 'white' }}
-              >
-                <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
-                <div className="flex items-center justify-end gap-1 mt-1">
-                  <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                  {msg.from === 'user' && (
-                    msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
-                    msg.status === 'failed'    ? <span className="text-[10px] text-red-400">!</span> :
-                    msg.status === 'read'      ? <CheckCheck size={12} className="text-sky-500" /> :
-                    msg.status === 'delivered' ? <CheckCheck size={12} className="text-gray-400" /> :
-                                                 <Check size={12} className="text-gray-400" />
-                  )}
-                </div>
-                {msg.status === 'failed' && (
-                  <p className="text-[10px] text-red-400 mt-0.5">Failed to send — tap to retry</p>
-                )}
+        {/* Body — form OR chat */}
+        {!hasIdentity ? (
+          <StartForm onSubmit={handleStartChat} />
+        ) : (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2" style={{ background: WA_BG }}>
+              <div className="flex justify-center mb-2">
+                <span className="text-[10px] bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg px-3 py-1.5 text-center leading-snug max-w-[270px]">
+                  🔒 Messages go directly to our team. We reply here in this chat.
+                </span>
               </div>
+
+              {messages.map(msg => (
+                <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${msg.from === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
+                    style={{ background: msg.from === 'user' ? WA_BUBBLE_OUT : 'white' }}
+                  >
+                    <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                      <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                      {msg.from === 'user' && (
+                        msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
+                        msg.status === 'failed'    ? <span className="text-[10px] text-red-400">!</span> :
+                        msg.status === 'read'      ? <CheckCheck size={12} className="text-sky-500" /> :
+                        msg.status === 'delivered' ? <CheckCheck size={12} className="text-gray-400" /> :
+                                                      <Check size={12} className="text-gray-400" />
+                      )}
+                    </div>
+                    {msg.status === 'failed' && (
+                      <p className="text-[10px] text-red-400 mt-0.5">Failed to send — tap to retry</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {hasUserSentAnything && !messages.some(m => m.from === 'shop' && !m.isLocal) && !typing && (
+                <div className="flex justify-center">
+                  <span className="text-[10px] text-gray-400 bg-white/60 rounded-full px-3 py-1">
+                    Our team will reply here shortly…
+                  </span>
+                </div>
+              )}
+
+              {typing && <TypingDots />}
+              <div ref={endRef} />
             </div>
-          ))}
 
-          {/* Awaiting reply hint */}
-          {hasUserSentAnything && !messages.some(m => m.from === 'shop' && !m.isLocal) && !typing && (
-            <div className="flex justify-center">
-              <span className="text-[10px] text-gray-400 bg-white/60 rounded-full px-3 py-1">
-                Our team will reply here shortly…
-              </span>
-            </div>
-          )}
+            {/* Quick replies */}
+            {messages.length <= 1 && !typing && (
+              <div className="shrink-0 flex gap-2 px-3 py-2 overflow-x-auto scrollbar-none" style={{ background: WA_BG }}>
+                {QUICK_REPLIES.map(qr => (
+                  <button key={qr} onClick={() => send(qr)}
+                    className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-green-50 hover:border-green-400 transition-colors whitespace-nowrap shadow-sm">
+                    {qr}
+                  </button>
+                ))}
+              </div>
+            )}
 
-          {typing && <TypingDots />}
-          <div ref={endRef} />
-        </div>
-
-        {/* Quick replies */}
-        {messages.length <= 1 && !typing && (
-          <div className="shrink-0 flex gap-2 px-3 py-2 overflow-x-auto scrollbar-none" style={{ background: WA_BG }}>
-            {QUICK_REPLIES.map(qr => (
+            {/* Input */}
+            <div className="shrink-0 flex items-center gap-2 px-3 py-3 border-t border-black/5" style={{ background: WA_INPUT_BG }}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }}}
+                placeholder="Type a message"
+                className="flex-1 rounded-full px-4 py-2.5 text-sm bg-white outline-none border border-transparent focus:border-gray-300 transition-colors"
+              />
               <button
-                key={qr}
-                onClick={() => send(qr)}
-                className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-green-50 hover:border-green-400 transition-colors whitespace-nowrap shadow-sm"
+                onClick={() => send(input)}
+                disabled={!input.trim() || sending}
+                className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 disabled:opacity-40 disabled:scale-95 hover:scale-105 active:scale-95"
+                style={{ background: WA_GREEN }}
               >
-                {qr}
+                {sending
+                  ? <RefreshCw size={15} className="text-white animate-spin" />
+                  : <Send size={16} className="text-white" style={{ transform: 'translateX(1px)' }} />
+                }
               </button>
-            ))}
-          </div>
+            </div>
+          </>
         )}
-
-        {/* Input */}
-        <div className="shrink-0 flex items-center gap-2 px-3 py-3 border-t border-black/5" style={{ background: WA_INPUT_BG }}>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }}}
-            placeholder="Type a message"
-            className="flex-1 rounded-full px-4 py-2.5 text-sm bg-white outline-none border border-transparent focus:border-gray-300 transition-colors"
-          />
-          <button
-            onClick={() => send(input)}
-            disabled={!input.trim() || sending}
-            className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 disabled:opacity-40 disabled:scale-95 hover:scale-105 active:scale-95"
-            style={{ background: WA_GREEN }}
-          >
-            {sending
-              ? <RefreshCw size={15} className="text-white animate-spin" />
-              : <Send size={16} className="text-white" style={{ transform: 'translateX(1px)' }} />
-            }
-          </button>
-        </div>
       </div>
 
-      {/* ── Floating button ───────────────────────────────────────────────── */}
+      {/* Floating button */}
       <div className="relative">
         {!open && (
           <span className="absolute inset-0 rounded-full animate-ping opacity-25 pointer-events-none" style={{ background: WA_GREEN }} />

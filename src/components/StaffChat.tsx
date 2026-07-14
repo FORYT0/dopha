@@ -12,11 +12,13 @@ interface FirestoreMessage {
 }
 
 interface ChatSession {
-  sessionId:     string;
-  messages:      FirestoreMessage[];
-  createdAt:     string;
-  lastActivity:  string;
-  unreadByStaff: boolean;
+  sessionId:      string;
+  customerName?:  string;
+  customerPhone?: string;
+  messages:       FirestoreMessage[];
+  createdAt:      string;
+  lastActivity:   string;
+  unreadByStaff:  boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -37,8 +39,9 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-/** Use the customer's first message as the session title. */
+/** Use the customer's name if known, otherwise their first message. */
 function sessionTitle(session: ChatSession): string {
+  if (session.customerName) return session.customerName;
   const first = session.messages.find(m => m.from === 'user');
   if (first) return first.text;
   return `Visitor ${session.sessionId.slice(0, 6).toUpperCase()}`;
@@ -203,7 +206,9 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                     </span>
                     <span className="text-[10px] text-gray-400 shrink-0 ml-1">{formatTime(sess.lastActivity)}</span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{lastMsg(sess)}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {sess.customerPhone ? `+${sess.customerPhone} · ` : ''}{lastMsg(sess)}
+                  </p>
                 </div>
                 {sess.unreadByStaff && (
                   <span className="shrink-0 w-2 h-2 rounded-full bg-[var(--teal)] mt-2" />
@@ -231,7 +236,10 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                     {sessionTitle(selectedSession).slice(0, 35)}{sessionTitle(selectedSession).length > 35 ? '…' : ''}
                   </p>
                   <p className="text-[11px] text-green-300">
-                    #{selectedSession.sessionId.slice(0, 8)} · started {timeAgo(selectedSession.createdAt ?? selectedSession.lastActivity)}
+                    {selectedSession.customerPhone
+                      ? `+${selectedSession.customerPhone} · `
+                      : `#${selectedSession.sessionId.slice(0, 8)} · `}
+                    started {timeAgo(selectedSession.createdAt ?? selectedSession.lastActivity)}
                   </p>
                 </div>
               </div>
