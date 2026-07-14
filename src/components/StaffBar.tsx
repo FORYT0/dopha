@@ -11,7 +11,6 @@ export default function StaffBar() {
   const [showAdd,            setShowAdd]            = useState(false);
   const [showConfirmReset,   setShowConfirmReset]   = useState(false);
   const [justSaved,          setJustSaved]          = useState(false);
-  const [pricesSaving,       setPricesSaving]       = useState(false);
   const [pricesJustSaved,    setPricesJustSaved]    = useState(false);
   const [showChat,           setShowChat]           = useState(false);
   const [chatUnread,         setChatUnread]         = useState(0);
@@ -103,15 +102,11 @@ export default function StaffBar() {
 
             {/* Hide Prices — saves to Firestore immediately, no extra Save click needed */}
             <button
-              onClick={async () => {
-                setPricesSaving(true);
-                setPricesJustSaved(false);
-                await toggleHidePrices();
-                setPricesSaving(false);
+              onClick={() => {
+                toggleHidePrices();
                 setPricesJustSaved(true);
                 setTimeout(() => setPricesJustSaved(false), 2000);
               }}
-              disabled={pricesSaving}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors border ${
                 pricesJustSaved
                   ? 'bg-green-600 text-white border-green-600'
@@ -121,9 +116,7 @@ export default function StaffBar() {
               }`}
               title={hidePrices ? 'Prices hidden — click to show' : 'Hide all prices'}
             >
-              {pricesSaving ? (
-                <><Loader2 size={12} className="animate-spin" /><span className="hidden sm:inline">Saving…</span></>
-              ) : pricesJustSaved ? (
+              {pricesJustSaved ? (
                 <><Check size={12} /><span className="hidden sm:inline">Saved!</span></>
               ) : hidePrices ? (
                 <><EyeOff size={12} /><span className="hidden sm:inline">Prices Hidden</span></>

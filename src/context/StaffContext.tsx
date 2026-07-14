@@ -64,7 +64,7 @@ interface StaffContextType {
   deleteProduct:    (id: number) => void;
   resetProducts:    () => void;
   hidePrices:       boolean;
-  toggleHidePrices: () => Promise<void>;
+  toggleHidePrices: () => void;
   footerData:       FooterData;
   updateFooterData: (updates: Partial<FooterData>) => void;
   resetFooterData:  () => void;
@@ -278,13 +278,12 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
   }, [commitProducts]);
 
   // ── Hide Prices — write to Firestore; onSnapshot propagates everywhere ──────
-  const toggleHidePrices = useCallback(async () => {
+  const toggleHidePrices = useCallback(() => {
     const next = !hidePrices;
-    // Optimistic local update for snappiness
+    // Apply immediately — no await needed; onSnapshot confirms on all browsers
     setHidePrices(next);
     try { localStorage.setItem(HIDE_PRICES_KEY, String(next)); } catch {}
-    // Await Firestore so the caller can show a "Saved!" confirmation
-    await setDoc(doc(db, 'settings', 'store'), { hidePrices: next }, { merge: true });
+    setDoc(doc(db, 'settings', 'store'), { hidePrices: next }, { merge: true }).catch(() => {});
   }, [hidePrices]);
 
   // ── Footer ────────────────────────────────────────────────────────────────
