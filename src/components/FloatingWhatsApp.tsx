@@ -184,12 +184,23 @@ export default function FloatingWhatsApp() {
         ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
       });
 
-      // Unread badge: count new staff messages while chat is closed
-      const newStaff = allMsgs
-        .filter(m => m.from === 'staff' && !seenStaffIds.current.has(m.id));
+      // New staff messages: update badge OR auto-open chat
+      const newStaff = allMsgs.filter(
+        m => m.from === 'staff' && !seenStaffIds.current.has(m.id),
+      );
       if (newStaff.length > 0) {
         newStaff.forEach(m => seenStaffIds.current.add(m.id));
-        if (!openRef.current) setUnread(n => n + newStaff.length);
+        if (!openRef.current) {
+          // Auto-open if any new staff message is less than 24 h old
+          const hasRecent = newStaff.some(
+            m => Date.now() - new Date(m.time).getTime() < 24 * 60 * 60 * 1000,
+          );
+          if (hasRecent) {
+            setOpen(true);   // chat pops open with the conversation
+          } else {
+            setUnread(n => n + newStaff.length); // older — just badge
+          }
+        }
       }
     });
 
