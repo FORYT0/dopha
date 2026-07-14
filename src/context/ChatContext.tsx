@@ -14,14 +14,19 @@ export interface OrderItem {
 }
 
 export interface FirestoreMessage {
-  id:        string;
-  text:      string;
-  from:      'user' | 'staff';
-  time:      string;
-  type?:     'text' | 'order' | 'quote';
-  order?:    OrderItem[];
-  orderRef?: string;
-  total?:    number; // grand total, set by staff on quote messages
+  id:                 string;
+  text:               string;
+  from:               'user' | 'staff';
+  time:               string;
+  type?:              'text' | 'order' | 'quote' | 'payment';
+  order?:             OrderItem[];
+  orderRef?:          string;
+  total?:             number;   // grand total on quote messages
+  // ── Payment fields (type === 'payment') ──
+  paymentStatus?:     'pending' | 'success' | 'failed';
+  checkoutRequestId?: string;
+  mpesaRef?:          string;
+  amount?:            number;   // payment amount in KSh
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -156,22 +161,4 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    setIsOpen(true); // open the chat widget
-    return orderRef;
-  }, [sessionId, customerName, customerPhone]);
-
-  return (
-    <ChatContext.Provider value={{
-      sessionId, customerName, customerPhone, hasIdentity,
-      identify, isOpen, setIsOpen, sendOrder,
-    }}>
-      {children}
-    </ChatContext.Provider>
-  );
-}
-
-export function useChatContext() {
-  const ctx = useContext(ChatContext);
-  if (!ctx) throw new Error('useChatContext must be used within ChatProvider');
-  return ctx;
-}
+    setI

@@ -20,16 +20,21 @@ const WA_INPUT_BG   = '#F0F2F5';
 type MsgStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 interface Message {
-  id:        string;
-  text:      string;
-  from:      'user' | 'shop';
-  time:      string;
-  status:    MsgStatus;
-  isLocal?:  boolean;
-  type?:     'text' | 'order' | 'quote';
-  order?:    OrderItem[];
-  orderRef?: string;
-  total?:    number;
+  id:                 string;
+  text:               string;
+  from:               'user' | 'shop';
+  time:               string;
+  status:             MsgStatus;
+  isLocal?:           boolean;
+  type?:              'text' | 'order' | 'quote' | 'payment';
+  order?:             OrderItem[];
+  orderRef?:          string;
+  total?:             number;
+  // payment
+  paymentStatus?:     'pending' | 'success' | 'failed';
+  checkoutRequestId?: string;
+  mpesaRef?:          string;
+  amount?:            number;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -158,6 +163,156 @@ function QuoteCard({ items, orderRef, total }: { items: OrderItem[]; orderRef?: 
   );
 }
 
+// ── Payment status card (shown to customer for type==='payment' messages) ─────
+function PaymentCard({
+  status, amount, mpesaRef,
+}: {
+  status: 'pending' | 'success' | 'failed';
+  amount?: number;
+  mpesaRef?: string | null;
+}) {
+  if (status === 'success') {
+    return (
+      <div className="rounded-2xl rounded-tl-sm overflow-hidden shadow-sm"
+        style={{ background: '#F0FFF4', border: '1px solid #86EFAC', minWidth: '200px' }}>
+        <div className="flex items-center gap-2 px-3 py-2"
+          style={{ background: '#DCFCE7', borderBottom: '1px solid #86EFAC' }}>
+          <CheckCheck size={14} className="text-green-600" />
+          <span className="text-xs font-semibold text-green-800">Payment Confirmed ✓</span>
+        </div>
+        <div className="px-3 py-2.5">
+          {amount != null && (
+            <p className="text-sm font-bold text-gray-800">KSh {amount.toLocaleString()}</p>
+          )}
+          {mpesaRef && (
+            <p className="text-[10px] text-gray-400 font-mono mt-0.5">Ref: {mpesaRef}</p>
+          )}
+          <p className="text-[11px] text-green-700 mt-1">Thank you! Our team will process your order.</p>
+        </div>
+      </div>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <div className="rounded-2xl rounded-tl-sm overflow-hidden shadow-sm"
+        style={{ background: '#FFF5F5', border: '1px solid #FCA5A5', minWidth: '200px' }}>
+        <div className="flex items-center gap-2 px-3 py-2"
+          style={{ background: '#FEE2E2', borderBottom: '1px solid #FCA5A5' }}>
+          <span className="text-red-500 text-sm font-bold">✕</span>
+          <span className="text-xs font-semibold text-red-700">Payment Failed</span>
+        </div>
+        <div className="px-3 py-2.5">
+          <p className="text-xs text-gray-600">The payment was cancelled or timed out. You can try again.</p>
+        </div>
+      </div>
+    );
+  }
+  // pending
+  return (
+    <div className="rounded-2xl rounded-tl-sm overflow-hidden shadow-sm"
+      style={{ background: '#FFFDE7', border: '1px solid #FFE082', minWidth: '200px' }}>
+      <div className="flex items-center gap-2 px-3 py-2"
+        style={{ background: '#FFF9C4', borderBottom: '1px solid #FFE082' }}>
+        <RefreshCw size={13} className="animate-spin text-amber-500" />
+        <span className="text-xs font-semibold text-amber-800">Awaiting M-Pesa</span>
+      </div>
+      <div className="px-3 py-2.5">
+        <p className="text-xs text-gray-600">📱 Check your phone and enter your M-Pesa PIN.</p>
+        {amount != null && (
+          <p className="text-sm font-bold text-gray-800 mt-1">KSh {amount.toLocaleString()}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── M-Pesa Pay section (appears below QuoteCard when no payment exists yet) ───
+function PaySection({
+  total, orderRef, sessionId, defaultPhone,
+}: {
+  total: number;
+  orderRef?: string;
+  sessionId: string;
+  defaultPhone?: string;
+}) {
+  const [step,  setStep]  = useState<'idle' | 'confirm' | 'loading'>('idle');
+  const [phone, setPhone] = useState(defaultPhone || '');
+  const [err,   setErr]   = useState('');
+
+  const initiate = async () => {
+    setErr('');
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 9) { setErr('Enter a valid Kenyan phone number'); return; }
+    setStep('loading');
+    try {
+      const r = await fetch('/api/mpesa/stkpush', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ phone, amount: total, orderRef, sessionId }),
+      });
+      if (!r.ok) {
+        const d = await r.json() as { error?: string };
+        setErr(d.error || 'Payment failed. Please try again.');
+        setStep('confirm');
+        return;
+      }
+      // success — payment message will appear via Firestore listener
+      setStep('idle');
+    } catch {
+      setErr('Network error. Please try again.');
+      setStep('confirm');
+    }
+  };
+
+  return (
+    <div className="mt-1 rounded-xl overflow-hidden border border-indigo-200"
+      style={{ background: '#F8FAFF' }}>
+      {step === 'idle' && (
+        <button
+          onClick={() => setStep('confirm')}
+          className="w-full py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+          style={{ background: '#3B5BDB' }}
+        >
+          💚 Pay KSh {total.toLocaleString()} with M-Pesa
+        </button>
+      )}
+      {(step === 'confirm' || step === 'loading') && (
+        <div className="p-3 flex flex-col gap-2">
+          <p className="text-xs font-medium text-gray-600">Send M-Pesa prompt to:</p>
+          <input
+            type="tel"
+            value={phone}
+            onChange={e => { setPhone(e.target.value); setErr(''); }}
+            placeholder="e.g. 0712 743 428"
+            disabled={step === 'loading'}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 bg-white disabled:bg-gray-50"
+          />
+          {err && <p className="text-[11px] text-red-500">{err}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setStep('idle'); setErr(''); }}
+              disabled={step === 'loading'}
+              className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-white disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={initiate}
+              disabled={step === 'loading' || !phone.trim()}
+              className="flex-1 py-1.5 text-xs font-semibold text-white rounded-lg flex items-center justify-center gap-1 disabled:opacity-50"
+              style={{ background: '#3B5BDB' }}
+            >
+              {step === 'loading'
+                ? <><RefreshCw size={11} className="animate-spin" /> Sending…</>
+                : 'Confirm & Pay'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Identity form ─────────────────────────────────────────────────────────────
 interface StartFormProps { onSubmit: (name: string, phone: string) => void; }
 
@@ -220,327 +375,4 @@ function saveMsgs(sessionId: string, messages: Message[]) {
   try { localStorage.setItem(MSG_KEY, JSON.stringify({ sessionId, messages })); } catch {}
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export default function FloatingWhatsApp() {
-  const {
-    sessionId, customerName, customerPhone, hasIdentity,
-    identify, isOpen, setIsOpen,
-  } = useChatContext();
-
-  const [messages, setMessages] = useState<Message[]>(() => loadMessages(sessionId));
-  const [input,    setInput]    = useState('');
-  const [typing,   setTyping]   = useState(false);
-  const [unread,   setUnread]   = useState(0);
-  const [sending,  setSending]  = useState(false);
-
-  const seenStaffIds = useRef<Set<string>>(
-    new Set(messages.filter(m => m.from === 'shop' && !m.isLocal).map(m => m.id)),
-  );
-  const endRef   = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const openRef  = useRef(isOpen);
-  openRef.current = isOpen;
-
-  // Reset messages when session changes (e.g. cart identifies a new user)
-  const prevSession = useRef(sessionId);
-  useEffect(() => {
-    if (sessionId === prevSession.current) return;
-    prevSession.current = sessionId;
-    const restored = loadMessages(sessionId);
-    setMessages(restored);
-    seenStaffIds.current = new Set(restored.filter(m => m.from === 'shop' && !m.isLocal).map(m => m.id));
-  }, [sessionId]);
-
-  // Persist messages
-  useEffect(() => { saveMsgs(sessionId, messages); }, [sessionId, messages]);
-
-  // Greeting — fires on first open per session (even if order already present)
-  const hasGreeted = useRef(false);
-  useEffect(() => { hasGreeted.current = false; }, [sessionId]); // reset on new session
-
-  useEffect(() => {
-    if (!isOpen) { setUnread(0); return; }
-    setUnread(0);
-    if (hasGreeted.current || !hasIdentity) return;
-    hasGreeted.current = true;
-    setTyping(true);
-    const t = setTimeout(() => {
-      setTyping(false);
-      // Prepend greeting (isLocal keeps it even after Firestore merge)
-      setMessages(prev => {
-        if (prev.some(m => m.id === 'greeting')) return prev;
-        const greeting: Message = {
-          id: 'greeting', isLocal: true, from: 'shop', status: 'read',
-          // Give it a very early time so it sorts first
-          time: new Date(Date.now() - 60_000).toISOString(),
-          text: `👋 Hi ${customerName}! Welcome to Dopha Electronics.\n\nWe have 140+ components in stock — Arduino, sensors, resistors, capacitors, displays, modules and more.\n\nWhat can we help you with today?`,
-        };
-        return [greeting, ...prev];
-      });
-    }, 1200);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, hasIdentity]);
-
-  // Firestore real-time listener
-  useEffect(() => {
-    if (!hasIdentity) return;
-    const unsub = onSnapshot(doc(db, 'chats', sessionId), (snap: DocumentSnapshot) => {
-      if (!snap.exists()) return;
-      const data    = snap.data() as { messages?: FirestoreMessage[] };
-      const allMsgs = (data.messages ?? []).slice().sort(
-        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
-      );
-
-      setMessages(prev => {
-        const localOnly  = prev.filter(m => m.isLocal);
-        const inFlight   = prev.filter(m => !m.isLocal && m.from === 'user' && m.status === 'sending');
-        const fromStore: Message[] = allMsgs.map(m => ({
-          id:       m.id,
-          text:     m.text,
-          from:     m.from === 'staff' ? ('shop' as const) : ('user' as const),
-          time:     m.time,
-          status:   'read' as MsgStatus,
-          type:     m.type,
-          order:    m.order,
-          orderRef: m.orderRef,
-          total:    m.total,
-        }));
-        const storeIds    = new Set(fromStore.map(m => m.id));
-        const stillFlying = inFlight.filter(m => !storeIds.has(m.id));
-        const remotesSorted = [...fromStore, ...stillFlying]
-          .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-        // Keep local messages (greeting) pinned at the top
-        return [...localOnly, ...remotesSorted];
-      });
-
-      const newStaff = allMsgs.filter(m => m.from === 'staff' && !seenStaffIds.current.has(m.id));
-      if (newStaff.length > 0) {
-        newStaff.forEach(m => seenStaffIds.current.add(m.id));
-        if (!openRef.current) {
-          const recent = newStaff.some(m => Date.now() - new Date(m.time).getTime() < 86400000);
-          if (recent) setIsOpen(true);
-          else setUnread(n => n + newStaff.length);
-        }
-      }
-    });
-    return () => unsub();
-  }, [sessionId, hasIdentity, setIsOpen]);
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, typing]);
-  useEffect(() => { if (isOpen && hasIdentity) setTimeout(() => inputRef.current?.focus(), 120); }, [isOpen, hasIdentity]);
-
-  // ── Send text message ─────────────────────────────────────────────────────
-  const send = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || sending || !hasIdentity) return;
-
-    const msgId = genMsgId('u');
-    const now   = new Date().toISOString();
-    const fsMsg: FirestoreMessage = { id: msgId, text: trimmed, from: 'user', time: now };
-    const uiMsg: Message          = { id: msgId, text: trimmed, from: 'user', time: now, status: 'sending' };
-
-    setMessages(prev => [...prev, uiMsg]);
-    setInput('');
-    setSending(true);
-
-    try {
-      const docRef = doc(db, 'chats', sessionId);
-      try {
-        await updateDoc(docRef, { messages: arrayUnion(fsMsg), lastActivity: now, unreadByStaff: true });
-      } catch {
-        await setDoc(fsDoc(db, 'chats', sessionId), {
-          sessionId, customerName, customerPhone: customerPhone || null,
-          messages: [fsMsg], createdAt: now, lastActivity: now, unreadByStaff: true,
-        });
-      }
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'delivered' } : m));
-    } catch {
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, status: 'failed' } : m));
-    } finally {
-      setSending(false);
-    }
-  }, [sending, hasIdentity, sessionId, customerName, customerPhone]);
-
-  // ── Handle identity form ──────────────────────────────────────────────────
-  const handleIdentify = useCallback((name: string, phone: string) => {
-    const norm = normalizePhone(phone);
-    const sid  = norm ? `ph-${norm}` : genSessionId();
-    identify(name, phone);
-    saveIdentity({ sessionId: sid, customerName: name, customerPhone: norm });
-  }, [identify]);
-
-  // ── Clear chat ────────────────────────────────────────────────────────────
-  const clearChat = useCallback(() => {
-    try { localStorage.removeItem(MSG_KEY); } catch {}
-    window.location.reload();
-  }, []);
-
-  const hasUserMsg = messages.some(m => m.from === 'user');
-
-  // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-      {/* Chat card */}
-      <div className="flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-black/5"
-        style={{
-          width: '360px', height: '520px', maxWidth: 'calc(100vw - 1.5rem)',
-          background: WA_BG, transformOrigin: 'bottom right',
-          transform:  isOpen ? 'scale(1) translateY(0)' : 'scale(0.85) translateY(20px)',
-          opacity:    isOpen ? 1 : 0, pointerEvents: isOpen ? 'auto' : 'none',
-          transition: 'transform 0.22s cubic-bezier(.22,1,.36,1), opacity 0.18s ease',
-        }} aria-hidden={!isOpen}>
-
-        {/* Header */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-3" style={{ background: WA_DARK }}>
-          <div className="relative shrink-0">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ background: WA_LIGHT }}>DE</div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2" style={{ borderColor: WA_DARK }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm">Dopha Electronics</p>
-            <p className="text-green-300 text-xs">● Online · We reply in minutes</p>
-          </div>
-          <div className="flex items-center gap-1">
-            {hasUserMsg && (
-              <button onClick={clearChat} title="Clear chat" className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6" />
-                </svg>
-              </button>
-            )}
-            <button onClick={() => setIsOpen(false)} title="Close" className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-              <X size={17} className="text-white/70" />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        {!hasIdentity ? (
-          <StartForm onSubmit={handleIdentify} />
-        ) : (
-          <>
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2" style={{ background: WA_BG }}>
-              <div className="flex justify-center mb-2">
-                <span className="text-[10px] bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg px-3 py-1.5 text-center leading-snug max-w-[270px]">
-                  🔒 Messages go directly to our team. We reply here in this chat.
-                </span>
-              </div>
-
-              {messages.map(msg => {
-                const isUser = msg.from === 'user';
-
-                // ── Quote reply from staff ──
-                if (msg.type === 'quote' && msg.order) {
-                  return (
-                    <div key={msg.id} className="flex justify-start">
-                      <div className="max-w-[92%]">
-                        <QuoteCard items={msg.order} orderRef={msg.orderRef} total={msg.total} />
-                        <div className="mt-1 pl-1">
-                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // ── Customer order request ──
-                if (msg.type === 'order' && msg.order) {
-                  return (
-                    <div key={msg.id} className="flex justify-end">
-                      <div className="max-w-[92%]">
-                        <OrderCard items={msg.order} orderRef={msg.orderRef} />
-                        <div className="flex justify-end gap-1 mt-1 pr-1">
-                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                          {msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
-                           msg.status === 'delivered' ? <CheckCheck size={12} className="text-gray-400" /> :
-                                                        <CheckCheck size={12} className="text-sky-500" />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // ── Regular text bubble ──
-                return (
-                  <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
-                      style={{ background: isUser ? WA_BUBBLE_OUT : 'white' }}>
-                      <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
-                        <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                        {isUser && (
-                          msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
-                          msg.status === 'failed'    ? <span className="text-[10px] text-red-400">!</span> :
-                          msg.status === 'read'      ? <CheckCheck size={12} className="text-sky-500" /> :
-                          msg.status === 'delivered' ? <CheckCheck size={12} className="text-gray-400" /> :
-                                                        <Check size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                      {msg.status === 'failed' && <p className="text-[10px] text-red-400 mt-0.5">Failed to send — tap to retry</p>}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {hasUserMsg && !messages.some(m => m.from === 'shop' && !m.isLocal) && !typing && (
-                <div className="flex justify-center">
-                  <span className="text-[10px] text-gray-400 bg-white/60 rounded-full px-3 py-1">Our team will reply here shortly…</span>
-                </div>
-              )}
-              {typing && <TypingDots />}
-              <div ref={endRef} />
-            </div>
-
-            {/* Quick replies */}
-            {messages.length <= 1 && !typing && (
-              <div className="shrink-0 flex gap-2 px-3 py-2 overflow-x-auto scrollbar-none" style={{ background: WA_BG }}>
-                {QUICK_REPLIES.map(qr => (
-                  <button key={qr} onClick={() => send(qr)}
-                    className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-green-50 hover:border-green-400 transition-colors whitespace-nowrap shadow-sm">
-                    {qr}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Input */}
-            <div className="shrink-0 flex items-center gap-2 px-3 py-3 border-t border-black/5" style={{ background: WA_INPUT_BG }}>
-              <input ref={inputRef} type="text" value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }}}
-                placeholder="Type a message"
-                className="flex-1 rounded-full px-4 py-2.5 text-sm bg-white outline-none border border-transparent focus:border-gray-300 transition-colors" />
-              <button onClick={() => send(input)} disabled={!input.trim() || sending}
-                className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 disabled:opacity-40 disabled:scale-95 hover:scale-105 active:scale-95"
-                style={{ background: WA_GREEN }}>
-                {sending ? <RefreshCw size={15} className="text-white animate-spin" /> : <Send size={16} className="text-white" style={{ transform: 'translateX(1px)' }} />}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Floating button */}
-      <div className="relative">
-        {!isOpen && <span className="absolute inset-0 rounded-full animate-ping opacity-25 pointer-events-none" style={{ background: WA_GREEN }} />}
-        <button onClick={() => setIsOpen(o => !o)} title={isOpen ? 'Close chat' : 'Chat with us'}
-          className="relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform duration-200 hover:scale-110 active:scale-95"
-          style={{ background: WA_GREEN }} aria-label={isOpen ? 'Close chat' : 'Open chat'}>
-          <span className="absolute transition-all duration-200" style={{ opacity: isOpen ? 1 : 0, transform: isOpen ? 'scale(1)' : 'scale(0.5) rotate(-90deg)' }}>
-            <X size={26} className="text-white" />
-          </span>
-          <span className="absolute transition-all duration-200" style={{ opacity: isOpen ? 0 : 1, transform: isOpen ? 'scale(0.5) rotate(90deg)' : 'scale(1)' }}>
-            <WAIcon size={28} />
-          </span>
-        </button>
-        {!isOpen && unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold pointer-events-none">
-            {unread}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+// ── Main 
