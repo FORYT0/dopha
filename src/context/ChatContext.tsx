@@ -10,6 +10,7 @@ export interface OrderItem {
   icon:   string;
   image?: string;
   qty:    number;
+  price?: number; // unit price, set by staff when quoting
 }
 
 export interface FirestoreMessage {
@@ -17,9 +18,10 @@ export interface FirestoreMessage {
   text:      string;
   from:      'user' | 'staff';
   time:      string;
-  type?:     'text' | 'order';
+  type?:     'text' | 'order' | 'quote';
   order?:    OrderItem[];
   orderRef?: string;
+  total?:    number; // grand total, set by staff on quote messages
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

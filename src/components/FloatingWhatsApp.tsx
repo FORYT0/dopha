@@ -26,9 +26,10 @@ interface Message {
   time:      string;
   status:    MsgStatus;
   isLocal?:  boolean;
-  type?:     'text' | 'order';
+  type?:     'text' | 'order' | 'quote';
   order?:    OrderItem[];
   orderRef?: string;
+  total?:    number;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,6 +100,59 @@ function OrderCard({ items, orderRef, fromStaff = false }: { items: OrderItem[];
       {/* Footer */}
       <div className="px-3 py-2 text-[10px] text-gray-400 italic" style={{ borderTop: '1px solid #f0f0f0' }}>
         {items.reduce((s, i) => s + i.qty, 0)} unit{items.reduce((s, i) => s + i.qty, 0) !== 1 ? 's' : ''} · awaiting price quote…
+      </div>
+    </div>
+  );
+}
+
+// ── Quote card (staff reply with prices — shown to customer) ─────────────────
+function QuoteCard({ items, orderRef, total }: { items: OrderItem[]; orderRef?: string; total?: number }) {
+  const grand = total ?? items.reduce((s, i) => s + (i.price || 0) * i.qty, 0);
+  return (
+    <div className="rounded-2xl rounded-tl-sm overflow-hidden shadow-sm text-sm bg-white" style={{ minWidth: '220px' }}>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2" style={{ background: '#EEF4FF', borderBottom: '1px solid #C7D7FC' }}>
+        <CheckCheck size={14} style={{ color: '#3B5BDB' }} />
+        <span className="text-xs font-semibold text-gray-700">Your Quote</span>
+        {orderRef && <span className="ml-auto text-[10px] font-mono text-gray-400">{orderRef}</span>}
+      </div>
+      {/* Items */}
+      <div className="divide-y divide-gray-100">
+        {items.map(item => (
+          <div key={item.id} className="flex items-center gap-2 px-3 py-2.5">
+            {item.image ? (
+              <img src={item.image} alt={item.name}
+                className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" />
+            ) : (
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: '#3B5BDB' }}>
+                {item.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <span className="text-xs text-gray-800 truncate block">{item.name}</span>
+              {item.price != null && (
+                <span className="text-[10px] text-gray-400">
+                  KSh {item.price.toLocaleString()} × {item.qty}
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-bold text-gray-800 shrink-0">
+              KSh {((item.price || 0) * item.qty).toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* Total */}
+      <div className="flex items-center justify-between px-3 py-2.5"
+        style={{ background: '#EEF4FF', borderTop: '1px solid #C7D7FC' }}>
+        <span className="text-xs font-semibold text-gray-600">Total</span>
+        <span className="text-base font-extrabold" style={{ color: '#3B5BDB' }}>
+          KSh {grand.toLocaleString()}
+        </span>
+      </div>
+      <div className="px-3 py-1.5 text-[10px] text-gray-400 italic">
+        Quoted by Dopha Electronics
       </div>
     </div>
   );
@@ -250,6 +304,7 @@ export default function FloatingWhatsApp() {
           type:     m.type,
           order:    m.order,
           orderRef: m.orderRef,
+          total:    m.total,
         }));
         const storeIds    = new Set(fromStore.map(m => m.id));
         const stillFlying = inFlight.filter(m => !storeIds.has(m.id));
@@ -373,27 +428,49 @@ export default function FloatingWhatsApp() {
                 </span>
               </div>
 
-              {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  {msg.type === 'order' && msg.order ? (
-                    <div className="max-w-[88%]">
-                      <OrderCard items={msg.order} orderRef={msg.orderRef} fromStaff={false} />
-                      <div className="flex justify-end gap-1 mt-1 pr-1">
-                        <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                        {msg.from === 'user' && (
-                          msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
-                          msg.status === 'delivered' ? <CheckCheck size={12} className="text-gray-400" /> :
-                                                        <CheckCheck size={12} className="text-sky-500" />
-                        )}
+              {messages.map(msg => {
+                const isUser = msg.from === 'user';
+
+                // ── Quote reply from staff ──
+                if (msg.type === 'quote' && msg.order) {
+                  return (
+                    <div key={msg.id} className="flex justify-start">
+                      <div className="max-w-[92%]">
+                        <QuoteCard items={msg.order} orderRef={msg.orderRef} total={msg.total} />
+                        <div className="mt-1 pl-1">
+                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${msg.from === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
-                      style={{ background: msg.from === 'user' ? WA_BUBBLE_OUT : 'white' }}>
+                  );
+                }
+
+                // ── Customer order request ──
+                if (msg.type === 'order' && msg.order) {
+                  return (
+                    <div key={msg.id} className="flex justify-end">
+                      <div className="max-w-[92%]">
+                        <OrderCard items={msg.order} orderRef={msg.orderRef} />
+                        <div className="flex justify-end gap-1 mt-1 pr-1">
+                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                          {msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
+                           msg.status === 'delivered' ? <CheckCheck size={12} className="text-gray-400" /> :
+                                                        <CheckCheck size={12} className="text-sky-500" />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ── Regular text bubble ──
+                return (
+                  <div key={msg.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
+                      style={{ background: isUser ? WA_BUBBLE_OUT : 'white' }}>
                       <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                        {msg.from === 'user' && (
+                        {isUser && (
                           msg.status === 'sending'   ? <RefreshCw size={11} className="text-gray-400 animate-spin" /> :
                           msg.status === 'failed'    ? <span className="text-[10px] text-red-400">!</span> :
                           msg.status === 'read'      ? <CheckCheck size={12} className="text-sky-500" /> :
@@ -403,9 +480,9 @@ export default function FloatingWhatsApp() {
                       </div>
                       {msg.status === 'failed' && <p className="text-[10px] text-red-400 mt-0.5">Failed to send — tap to retry</p>}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
 
               {hasUserMsg && !messages.some(m => m.from === 'shop' && !m.isLocal) && !typing && (
                 <div className="flex justify-center">

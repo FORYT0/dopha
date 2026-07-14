@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, MessageSquare, RefreshCw, ShoppingBasket } from 'lucide-react';
+import { X, Send, MessageSquare, RefreshCw, ShoppingBasket, CheckCheck } from 'lucide-react';
 import { collection, doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { FirestoreMessage, OrderItem } from '../context/ChatContext';
@@ -54,6 +54,7 @@ function lastMsgPreview(session: ChatSession): string {
     const total = m.order.reduce((s, i) => s + i.qty, 0);
     return `🛒 Order: ${total} item${total !== 1 ? 's' : ''}`;
   }
+  if (m.type === 'quote') return `💬 Quote sent — KSh ${(m.total || 0).toLocaleString()}`;
   return (m.from === 'staff' ? 'You: ' : '') + m.text.slice(0, 60) + (m.text.length > 60 ? '…' : '');
 }
 
@@ -61,38 +62,158 @@ function genId(prefix = 's') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ── Order card (same visual as the customer widget) ──────────────────────────
-function OrderCard({ items, orderRef }: { items: OrderItem[]; orderRef?: string }) {
-  const total = items.reduce((s, i) => s + i.qty, 0);
+// ── Item thumbnail (shared by QuoteEditor + QuoteCard) ────────────────────────
+function ItemThumb({ item, size = 28 }: { item: OrderItem; size?: number }) {
+  if (item.image) {
+    return (
+      <img src={item.image} alt={item.name}
+        className="rounded-lg object-cover shrink-0 border border-gray-100"
+        style={{ width: size, height: size }} />
+    );
+  }
   return (
-    <div className="rounded-2xl rounded-tl-sm overflow-hidden shadow-sm text-sm bg-white" style={{ minWidth: '210px' }}>
+    <div className="rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+      style={{ width: size, height: size, background: '#128C7E' }}>
+      {item.name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+// ── Quote Editor (interactive — staff fills in prices) ────────────────────────
+interface QuoteEditorProps {
+  items:         OrderItem[];
+  orderRef?:     string;
+  msgId:         string;
+  quoteSent:     boolean;
+  prices:        Record<number, string>;
+  onPriceChange: (itemId: number, price: string) => void;
+  onSend:        () => void;
+  sending:       boolean;
+}
+
+function QuoteEditor({ items, orderRef, quoteSent, prices, onPriceChange, onSend, sending }: QuoteEditorProps) {
+  const total = items.reduce((sum, item) => {
+    const p = parseFloat(prices[item.id] || '0') || 0;
+    return sum + p * item.qty;
+  }, 0);
+
+  const allPriced = items.every(item => {
+    const p = parseFloat(prices[item.id] ?? '');
+    return !isNaN(p) && p > 0;
+  });
+
+  return (
+    <div className="rounded-2xl overflow-hidden shadow-sm text-sm bg-white border border-gray-100"
+      style={{ minWidth: '260px', maxWidth: '340px' }}>
+
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2" style={{ background: '#E7F8EE', borderBottom: '1px solid #d1f0dd' }}>
-        <ShoppingBasket size={14} style={{ color: '#128C7E' }} />
-        <span className="text-xs font-semibold text-gray-700">Order Request</span>
+      <div className="flex items-center gap-2 px-3 py-2"
+        style={{ background: quoteSent ? '#EEF4FF' : '#E7F8EE', borderBottom: `1px solid ${quoteSent ? '#C7D7FC' : '#d1f0dd'}` }}>
+        {quoteSent
+          ? <CheckCheck size={14} style={{ color: '#3B5BDB' }} />
+          : <ShoppingBasket size={14} style={{ color: '#128C7E' }} />}
+        <span className="text-xs font-semibold text-gray-700">
+          {quoteSent ? 'Quote Sent ✓' : 'Order Request'}
+        </span>
+        {orderRef && <span className="ml-auto text-[10px] font-mono text-gray-400">{orderRef}</span>}
+      </div>
+
+      {/* Items with price inputs */}
+      <div className="divide-y divide-gray-100">
+        {items.map(item => (
+          <div key={item.id} className="flex items-center gap-2 px-3 py-2.5">
+            <ItemThumb item={item} size={28} />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs text-gray-800 truncate block">{item.name}</span>
+              <span className="text-[10px] text-gray-400">qty: {item.qty}</span>
+            </div>
+            <div className="shrink-0 flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-400 font-medium">KSh</span>
+              {quoteSent ? (
+                <span className="text-xs font-semibold text-gray-700 w-20 text-right">
+                  {prices[item.id] ? Number(prices[item.id]).toLocaleString() : (item.price || 0).toLocaleString()}
+                </span>
+              ) : (
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={prices[item.id] ?? ''}
+                  onChange={e => onPriceChange(item.id, e.target.value)}
+                  className="w-20 text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-teal-400 transition-colors text-right bg-gray-50 focus:bg-white"
+                />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Total + Send */}
+      <div className="flex items-center justify-between gap-3 px-3 py-2.5"
+        style={{ background: quoteSent ? '#EEF4FF' : '#F0FFFE', borderTop: `1px solid ${quoteSent ? '#C7D7FC' : '#e0f2f0'}` }}>
+        <div>
+          <div className="text-[10px] text-gray-400 mb-0.5">Total</div>
+          <div className={`text-sm font-bold ${total > 0 ? 'text-gray-800' : 'text-gray-300'}`}>
+            {total > 0 ? `KSh ${total.toLocaleString()}` : '—'}
+          </div>
+        </div>
+        {!quoteSent && (
+          <button
+            onClick={onSend}
+            disabled={!allPriced || sending}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+            style={{ background: '#25D366' }}
+            title={allPriced ? 'Send quote to customer' : 'Set all prices first'}
+          >
+            {sending
+              ? <><RefreshCw size={12} className="animate-spin" /> Sending…</>
+              : <><Send size={12} /> Send Quote</>}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Quote card (staff's own sent-quote view, right side) ──────────────────────
+function QuoteCard({ items, orderRef, total }: { items: OrderItem[]; orderRef?: string; total?: number }) {
+  const grand = total ?? items.reduce((s, i) => s + (i.price || 0) * i.qty, 0);
+  return (
+    <div className="rounded-2xl rounded-tr-sm overflow-hidden shadow-sm text-sm bg-white border border-blue-100"
+      style={{ minWidth: '220px', maxWidth: '320px' }}>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2"
+        style={{ background: '#EEF4FF', borderBottom: '1px solid #C7D7FC' }}>
+        <CheckCheck size={14} style={{ color: '#3B5BDB' }} />
+        <span className="text-xs font-semibold text-gray-700">Quote Sent</span>
         {orderRef && <span className="ml-auto text-[10px] font-mono text-gray-400">{orderRef}</span>}
       </div>
       {/* Items */}
       <div className="divide-y divide-gray-100">
         {items.map(item => (
-          <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-            {item.image ? (
-              <img src={item.image} alt={item.name}
-                className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" />
-            ) : (
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
-                style={{ background: '#128C7E' }}>
-                {item.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="flex-1 text-xs text-gray-800 truncate">{item.name}</span>
-            <span className="text-xs font-semibold text-gray-500 shrink-0">×{item.qty}</span>
+          <div key={item.id} className="flex items-center gap-2 px-3 py-2.5">
+            <ItemThumb item={item} size={26} />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs text-gray-800 truncate block">{item.name}</span>
+              {item.price != null && (
+                <span className="text-[10px] text-gray-400">
+                  KSh {item.price.toLocaleString()} × {item.qty}
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-bold text-gray-800 shrink-0">
+              KSh {((item.price || 0) * item.qty).toLocaleString()}
+            </span>
           </div>
         ))}
       </div>
-      {/* Footer */}
-      <div className="px-3 py-2 text-[10px] text-gray-400 italic" style={{ borderTop: '1px solid #f0f0f0' }}>
-        {total} unit{total !== 1 ? 's' : ''} · reply with your pricing below
+      {/* Total */}
+      <div className="flex items-center justify-between px-3 py-2.5"
+        style={{ background: '#EEF4FF', borderTop: '1px solid #C7D7FC' }}>
+        <span className="text-xs font-semibold text-gray-600">Total</span>
+        <span className="text-base font-extrabold" style={{ color: '#3B5BDB' }}>
+          KSh {grand.toLocaleString()}
+        </span>
       </div>
     </div>
   );
@@ -107,11 +228,16 @@ interface Props {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function StaffChat({ onClose, onUnreadChange }: Props) {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [reply,    setReply]    = useState('');
-  const [sending,  setSending]  = useState(false);
-  const [loading,  setLoading]  = useState(true);
+  const [sessions,     setSessions]     = useState<ChatSession[]>([]);
+  const [selected,     setSelected]     = useState<string | null>(null);
+  const [reply,        setReply]        = useState('');
+  const [sending,      setSending]      = useState(false);
+  const [quoteSending, setQuoteSending] = useState(false);
+  const [loading,      setLoading]      = useState(true);
+
+  // Per-order-message price inputs: { messageId -> { itemId -> priceString } }
+  const [quotePrices, setQuotePrices] = useState<Record<string, Record<number, string>>>({});
+
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -121,7 +247,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
       const all: ChatSession[] = snapshot.docs
         .map(d => d.data() as ChatSession)
         .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
-
       setSessions(all);
       onUnreadChange(all.filter(s => s.unreadByStaff).length);
       setLoading(false);
@@ -148,7 +273,47 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
     if (selected) setTimeout(() => inputRef.current?.focus(), 100);
   }, [selected]);
 
-  // ── Send reply ────────────────────────────────────────────────────────────
+  // ── Price input handler ───────────────────────────────────────────────────
+  const handlePriceChange = useCallback((msgId: string, itemId: number, price: string) => {
+    setQuotePrices(prev => ({
+      ...prev,
+      [msgId]: { ...(prev[msgId] || {}), [itemId]: price },
+    }));
+  }, []);
+
+  // ── Send quote ────────────────────────────────────────────────────────────
+  const sendQuote = useCallback(async (orderMsg: FirestoreMessage) => {
+    if (!selected || quoteSending) return;
+    const prices = quotePrices[orderMsg.id] || {};
+
+    const pricedItems: OrderItem[] = (orderMsg.order || []).map(item => ({
+      ...item,
+      price: Math.round(parseFloat(prices[item.id] || '0')) || 0,
+    }));
+    const total = pricedItems.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0);
+
+    const quoteMsg: FirestoreMessage = {
+      id:       genId('q'),
+      text:     `Quote for ${orderMsg.orderRef || 'your order'}: Total KSh ${total.toLocaleString()}`,
+      from:     'staff',
+      time:     new Date().toISOString(),
+      type:     'quote',
+      order:    pricedItems,
+      orderRef: orderMsg.orderRef,
+      total,
+    };
+
+    setQuoteSending(true);
+    try {
+      await updateDoc(doc(db, 'chats', selected), {
+        messages:     arrayUnion(quoteMsg),
+        lastActivity: new Date().toISOString(),
+      });
+    } catch {}
+    setQuoteSending(false);
+  }, [selected, quoteSending, quotePrices]);
+
+  // ── Send text reply ───────────────────────────────────────────────────────
   const sendReply = useCallback(async () => {
     const text = reply.trim();
     if (!text || !selected || sending) return;
@@ -170,7 +335,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
         unreadByStaff: false,
       });
     } catch {}
-
     setSending(false);
   }, [reply, selected, sending]);
 
@@ -207,7 +371,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                 <RefreshCw size={18} className="animate-spin mr-2" /> Loading…
               </div>
             )}
-
             {!loading && sessions.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-sm gap-2 p-8 text-center">
                 <MessageSquare size={32} strokeWidth={1.5} />
@@ -215,7 +378,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                 <p className="text-xs text-gray-300">When customers send messages they'll appear here.</p>
               </div>
             )}
-
             {sessions.map(sess => (
               <button
                 key={sess.sessionId}
@@ -276,34 +438,68 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+              <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
                 {selectedSession.messages
                   .slice()
                   .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
-                  .map(msg => (
-                  <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-start' : 'justify-end'}`}>
-                    {msg.type === 'order' && msg.order ? (
-                      <div className="max-w-[80%]">
-                        <OrderCard items={msg.order} orderRef={msg.orderRef} />
-                        <div className="mt-1 pl-1">
-                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                  .map(msg => {
+                    // ── Order request (from customer) with interactive QuoteEditor ──
+                    if (msg.type === 'order' && msg.order) {
+                      const quoteSent = selectedSession.messages.some(
+                        m => m.type === 'quote' && m.orderRef === msg.orderRef,
+                      );
+                      return (
+                        <div key={msg.id} className="flex justify-start">
+                          <div>
+                            <QuoteEditor
+                              items={msg.order}
+                              orderRef={msg.orderRef}
+                              msgId={msg.id}
+                              quoteSent={quoteSent}
+                              prices={quotePrices[msg.id] || {}}
+                              onPriceChange={(itemId, price) => handlePriceChange(msg.id, itemId, price)}
+                              onSend={() => sendQuote(msg)}
+                              sending={quoteSending}
+                            />
+                            <div className="mt-1 pl-1">
+                              <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // ── Sent quote (from staff) ──
+                    if (msg.type === 'quote' && msg.order) {
+                      return (
+                        <div key={msg.id} className="flex justify-end">
+                          <div>
+                            <QuoteCard items={msg.order} orderRef={msg.orderRef} total={msg.total} />
+                            <div className="mt-1 pr-1 text-right">
+                              <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // ── Regular text message ──
+                    return (
+                      <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-start' : 'justify-end'}`}>
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${
+                            msg.from === 'user' ? 'rounded-tl-sm' : 'rounded-tr-sm'
+                          }`}
+                          style={{ background: msg.from === 'staff' ? '#DCF8C6' : 'white' }}
+                        >
+                          <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${
-                          msg.from === 'user' ? 'rounded-tl-sm' : 'rounded-tr-sm'
-                        }`}
-                        style={{ background: msg.from === 'staff' ? '#DCF8C6' : 'white' }}
-                      >
-                        <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
-                        <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
                 <div ref={endRef} />
               </div>
 
