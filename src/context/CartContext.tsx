@@ -5,12 +5,13 @@ export interface CartItem {
   name: string;
   price: number;
   icon: string;
+  image?: string;
   qty: number;
 }
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (product: { id: number; name: string; price: number; icon: string }) => void;
+  addToCart: (product: { id: number; name: string; price: number; icon: string; image?: string }) => void;
   removeFromCart: (productId: number) => void;
   updateQty: (productId: number, delta: number) => void;
   clearCart: () => void;
@@ -34,7 +35,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setToast({ message: '', visible: false }), 2500);
   }, []);
 
-  const addToCart = useCallback((product: { id: number; name: string; price: number; icon: string }) => {
+  const addToCart = useCallback((product: { id: number; name: string; price: number; icon: string; image?: string }) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === product.id);
       if (existing) {

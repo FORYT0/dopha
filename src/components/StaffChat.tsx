@@ -76,10 +76,15 @@ function OrderCard({ items, orderRef }: { items: OrderItem[]; orderRef?: string 
       <div className="divide-y divide-gray-100">
         {items.map(item => (
           <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ background: '#128C7E' }}>
-              {item.name.charAt(0).toUpperCase()}
-            </div>
+            {item.image ? (
+              <img src={item.image} alt={item.name}
+                className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" />
+            ) : (
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: '#128C7E' }}>
+                {item.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span className="flex-1 text-xs text-gray-800 truncate">{item.name}</span>
             <span className="text-xs font-semibold text-gray-500 shrink-0">×{item.qty}</span>
           </div>

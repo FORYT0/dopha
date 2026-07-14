@@ -687,7 +687,7 @@ function ProjectDetailModal({ project, onClose }: { project: ProjectGuide; onClo
   const handleAddComponent = (comp: ProjectComponent) => {
     const product = products.find(p => p.id === comp.productId);
     if (product) {
-      addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon });
+      addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon, image: product.image });
     }
   };
 
@@ -695,7 +695,7 @@ function ProjectDetailModal({ project, onClose }: { project: ProjectGuide; onClo
     project.components.forEach(comp => {
       const product = products.find(p => p.id === comp.productId);
       if (product) {
-        addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon });
+        addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon, image: product.image });
       }
     });
   };

@@ -5,10 +5,11 @@ import type { CartItem } from './CartContext';
 
 // ── Shared message types (used by widget + staff chat) ───────────────────────
 export interface OrderItem {
-  id:   number;
-  name: string;
-  icon: string;
-  qty:  number;
+  id:     number;
+  name:   string;
+  icon:   string;
+  image?: string;
+  qty:    number;
 }
 
 export interface FirestoreMessage {
@@ -116,10 +117,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const now      = new Date().toISOString();
 
     const orderItems: OrderItem[] = items.map(c => ({
-      id:   c.id,
-      name: c.name,
-      icon: c.icon,
-      qty:  c.qty,
+      id:    c.id,
+      name:  c.name,
+      icon:  c.icon,
+      image: c.image,
+      qty:   c.qty,
     }));
 
     const msg: FirestoreMessage = {

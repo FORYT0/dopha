@@ -50,7 +50,7 @@ export default function ProductCard({ product, viewMode = 'grid', innerRef, high
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon });
+    addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon, image: product.image });
   };
 
   const handleDelete = (e: React.MouseEvent) => {

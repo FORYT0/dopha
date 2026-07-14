@@ -43,7 +43,7 @@ function RelatedCard({ product, onSelect }: { product: EditableProduct; onSelect
       </div>
       {/* Add button */}
       <button
-        onClick={() => addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon })}
+        onClick={() => addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon, image: product.image })}
         className="w-8 h-8 rounded-lg bg-[var(--teal-light)] text-[var(--teal)] flex items-center justify-center hover:bg-[var(--teal)] hover:text-white transition-all shrink-0"
         aria-label={`Add ${product.name}`}
       >
@@ -72,7 +72,7 @@ export default function ProductQuickView({ product, onClose }: Props) {
   }, [onClose]);
 
   const handleAdd = () => {
-    addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon });
+    addToCart({ id: product.id, name: product.name, price: product.price, icon: product.icon, image: product.image });
   };
 
   return (

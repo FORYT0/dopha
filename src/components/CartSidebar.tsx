@@ -169,9 +169,14 @@ export default function CartSidebar() {
           ) : (
             cart.map(item => (
               <div key={item.id} className="flex gap-3 p-3 bg-[var(--light-gray)] rounded-xl mb-3 border border-[var(--medium-gray)]">
-                <div className="w-14 h-14 rounded-lg bg-white border border-[var(--medium-gray)] flex items-center justify-center shrink-0">
-                  <span className="text-xl text-[var(--teal)] font-bold">{item.name.charAt(0)}</span>
-                </div>
+                {item.image ? (
+                  <img src={item.image} alt={item.name}
+                    className="w-14 h-14 rounded-lg object-cover shrink-0 border border-[var(--medium-gray)]" />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-white border border-[var(--medium-gray)] flex items-center justify-center shrink-0">
+                    <span className="text-xl text-[var(--teal)] font-bold">{item.name.charAt(0)}</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-[var(--charcoal)] truncate">{item.name}</h4>
                   {/* Hide price when staff has toggled hidePrices */}

@@ -82,10 +82,15 @@ function OrderCard({ items, orderRef, fromStaff = false }: { items: OrderItem[];
       <div className="divide-y divide-gray-100">
         {items.map(item => (
           <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ background: WA_LIGHT }}>
-              {item.name.charAt(0).toUpperCase()}
-            </div>
+            {item.image ? (
+              <img src={item.image} alt={item.name}
+                className="w-7 h-7 rounded-lg object-cover shrink-0 border border-gray-100" />
+            ) : (
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: WA_LIGHT }}>
+                {item.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span className="flex-1 text-xs text-gray-800 truncate">{item.name}</span>
             <span className="text-xs font-semibold text-gray-500 shrink-0">×{item.qty}</span>
           </div>
@@ -195,21 +200,29 @@ export default function FloatingWhatsApp() {
   // Persist messages
   useEffect(() => { saveMsgs(sessionId, messages); }, [sessionId, messages]);
 
-  // Greeting when chat first opens (if no messages yet)
-  const prevOpen = useRef(false);
+  // Greeting — fires on first open per session (even if order already present)
+  const hasGreeted = useRef(false);
+  useEffect(() => { hasGreeted.current = false; }, [sessionId]); // reset on new session
+
   useEffect(() => {
-    if (!isOpen) { setUnread(0); prevOpen.current = false; return; }
+    if (!isOpen) { setUnread(0); return; }
     setUnread(0);
-    if (prevOpen.current || !hasIdentity || messages.length > 0) { prevOpen.current = true; return; }
-    prevOpen.current = true;
+    if (hasGreeted.current || !hasIdentity) return;
+    hasGreeted.current = true;
     setTyping(true);
     const t = setTimeout(() => {
       setTyping(false);
-      setMessages([{
-        id: 'greeting', isLocal: true, from: 'shop', status: 'read',
-        time: new Date().toISOString(),
-        text: `👋 Hi ${customerName}! Welcome to Dopha Electronics.\n\nWe have 140+ components in stock — Arduino, sensors, resistors, capacitors, displays, modules and more.\n\nWhat can we help you with today?`,
-      }]);
+      // Prepend greeting (isLocal keeps it even after Firestore merge)
+      setMessages(prev => {
+        if (prev.some(m => m.id === 'greeting')) return prev;
+        const greeting: Message = {
+          id: 'greeting', isLocal: true, from: 'shop', status: 'read',
+          // Give it a very early time so it sorts first
+          time: new Date(Date.now() - 60_000).toISOString(),
+          text: `👋 Hi ${customerName}! Welcome to Dopha Electronics.\n\nWe have 140+ components in stock — Arduino, sensors, resistors, capacitors, displays, modules and more.\n\nWhat can we help you with today?`,
+        };
+        return [greeting, ...prev];
+      });
     }, 1200);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -240,8 +253,10 @@ export default function FloatingWhatsApp() {
         }));
         const storeIds    = new Set(fromStore.map(m => m.id));
         const stillFlying = inFlight.filter(m => !storeIds.has(m.id));
-        return [...localOnly, ...fromStore, ...stillFlying]
+        const remotesSorted = [...fromStore, ...stillFlying]
           .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        // Keep local messages (greeting) pinned at the top
+        return [...localOnly, ...remotesSorted];
       });
 
       const newStaff = allMsgs.filter(m => m.from === 'staff' && !seenStaffIds.current.has(m.id));
