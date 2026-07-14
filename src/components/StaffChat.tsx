@@ -1,16 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, MessageSquare, RefreshCw } from 'lucide-react';
+import { X, Send, MessageSquare, RefreshCw, ShoppingBasket } from 'lucide-react';
 import { collection, doc, updateDoc, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import type { FirestoreMessage, OrderItem } from '../context/ChatContext';
 
 // ── Types ───────────────────────────────────────────────────────────────────
-interface FirestoreMessage {
-  id:   string;
-  text: string;
-  from: 'user' | 'staff';
-  time: string;
-}
-
 interface ChatSession {
   sessionId:      string;
   customerName?:  string;
@@ -39,15 +33,13 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-/** Use the customer's name if known, otherwise their first message. */
 function sessionTitle(session: ChatSession): string {
   if (session.customerName) return session.customerName;
   const first = session.messages.find(m => m.from === 'user');
-  if (first) return first.text;
+  if (first) return first.text.slice(0, 40);
   return `Visitor ${session.sessionId.slice(0, 6).toUpperCase()}`;
 }
 
-/** Derive a consistent color from the session ID. */
 function sessionColor(sessionId: string): string {
   const palette = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#DDA0DD','#F0A500','#7EC8E3','#B5936A'];
   let h = 0;
@@ -55,14 +47,50 @@ function sessionColor(sessionId: string): string {
   return palette[h % palette.length];
 }
 
-function lastMsg(session: ChatSession): string {
+function lastMsgPreview(session: ChatSession): string {
   const m = session.messages[session.messages.length - 1];
   if (!m) return 'No messages yet';
+  if (m.type === 'order' && m.order) {
+    const total = m.order.reduce((s, i) => s + i.qty, 0);
+    return `🛒 Order: ${total} item${total !== 1 ? 's' : ''}`;
+  }
   return (m.from === 'staff' ? 'You: ' : '') + m.text.slice(0, 60) + (m.text.length > 60 ? '…' : '');
 }
 
 function genId(prefix = 's') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// ── Order card (same visual as the customer widget) ──────────────────────────
+function OrderCard({ items, orderRef }: { items: OrderItem[]; orderRef?: string }) {
+  const total = items.reduce((s, i) => s + i.qty, 0);
+  return (
+    <div className="rounded-2xl rounded-tl-sm overflow-hidden shadow-sm text-sm bg-white" style={{ minWidth: '210px' }}>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2" style={{ background: '#E7F8EE', borderBottom: '1px solid #d1f0dd' }}>
+        <ShoppingBasket size={14} style={{ color: '#128C7E' }} />
+        <span className="text-xs font-semibold text-gray-700">Order Request</span>
+        {orderRef && <span className="ml-auto text-[10px] font-mono text-gray-400">{orderRef}</span>}
+      </div>
+      {/* Items */}
+      <div className="divide-y divide-gray-100">
+        {items.map(item => (
+          <div key={item.id} className="flex items-center gap-2 px-3 py-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+              style={{ background: '#128C7E' }}>
+              {item.name.charAt(0).toUpperCase()}
+            </div>
+            <span className="flex-1 text-xs text-gray-800 truncate">{item.name}</span>
+            <span className="text-xs font-semibold text-gray-500 shrink-0">×{item.qty}</span>
+          </div>
+        ))}
+      </div>
+      {/* Footer */}
+      <div className="px-3 py-2 text-[10px] text-gray-400 italic" style={{ borderTop: '1px solid #f0f0f0' }}>
+        {total} unit{total !== 1 ? 's' : ''} · reply with your pricing below
+      </div>
+    </div>
+  );
 }
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -82,7 +110,7 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Real-time listener on all chat sessions ───────────────────────────────
+  // ── Real-time listener ────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'chats'), (snapshot) => {
       const all: ChatSession[] = snapshot.docs
@@ -93,7 +121,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
       onUnreadChange(all.filter(s => s.unreadByStaff).length);
       setLoading(false);
     });
-
     return () => unsub();
   }, [onUnreadChange]);
 
@@ -106,13 +133,12 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-  // Scroll to bottom when messages change
   const selectedSession = sessions.find(s => s.sessionId === selected);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedSession?.messages.length]);
 
-  // Focus input when session selected
   useEffect(() => {
     if (selected) setTimeout(() => inputRef.current?.focus(), 100);
   }, [selected]);
@@ -129,6 +155,7 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
       text,
       from: 'staff',
       time: new Date().toISOString(),
+      type: 'text',
     };
 
     try {
@@ -168,7 +195,7 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
 
         <div className="flex flex-1 min-h-0">
 
-          {/* ── Session list ───────────────────────────────────────────────── */}
+          {/* ── Session list ──────────────────────────────────────────────── */}
           <div className={`shrink-0 flex flex-col border-r border-gray-100 bg-gray-50 overflow-y-auto ${selected ? 'hidden sm:flex' : 'flex'} sm:w-72 w-full`}>
             {loading && (
               <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
@@ -192,7 +219,6 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                   selected === sess.sessionId ? 'bg-white border-l-2 border-l-[var(--teal)]' : ''
                 }`}
               >
-                {/* Unique colored avatar per visitor */}
                 <div
                   className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
                   style={{ background: sessionColor(sess.sessionId) }}
@@ -207,7 +233,7 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
                     <span className="text-[10px] text-gray-400 shrink-0 ml-1">{formatTime(sess.lastActivity)}</span>
                   </div>
                   <p className="text-xs text-gray-500 truncate">
-                    {sess.customerPhone ? `+${sess.customerPhone} · ` : ''}{lastMsg(sess)}
+                    {sess.customerPhone ? `+${sess.customerPhone} · ` : ''}{lastMsgPreview(sess)}
                   </p>
                 </div>
                 {sess.unreadByStaff && (
@@ -217,7 +243,7 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
             ))}
           </div>
 
-          {/* ── Message thread ─────────────────────────────────────────────── */}
+          {/* ── Message thread ────────────────────────────────────────────── */}
           {selected && selectedSession ? (
             <div className="flex-1 flex flex-col min-h-0 bg-[#ECE5DD]">
               {/* Thread header */}
@@ -246,19 +272,31 @@ export default function StaffChat({ onClose, onUnreadChange }: Props) {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-                {selectedSession.messages.map(msg => (
+                {selectedSession.messages
+                  .slice()
+                  .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+                  .map(msg => (
                   <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-start' : 'justify-end'}`}>
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${
-                        msg.from === 'user' ? 'rounded-tl-sm bg-white' : 'rounded-tr-sm'
-                      }`}
-                      style={{ background: msg.from === 'staff' ? '#DCF8C6' : 'white' }}
-                    >
-                      <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
-                        <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                    {msg.type === 'order' && msg.order ? (
+                      <div className="max-w-[80%]">
+                        <OrderCard items={msg.order} orderRef={msg.orderRef} />
+                        <div className="mt-1 pl-1">
+                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-3 py-2 shadow-sm text-sm text-gray-800 ${
+                          msg.from === 'user' ? 'rounded-tl-sm' : 'rounded-tr-sm'
+                        }`}
+                        style={{ background: msg.from === 'staff' ? '#DCF8C6' : 'white' }}
+                      >
+                        <p className="leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div ref={endRef} />

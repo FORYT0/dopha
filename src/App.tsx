@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StaffProvider } from './context/StaffContext'
+import { ChatProvider } from './context/ChatContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import CartSidebar from './components/CartSidebar'
@@ -43,7 +44,9 @@ export default function App() {
   return (
     <StaffProvider>
       <CartProvider>
-        <AppShell />
+        <ChatProvider>
+          <AppShell />
+        </ChatProvider>
       </CartProvider>
     </StaffProvider>
   )
