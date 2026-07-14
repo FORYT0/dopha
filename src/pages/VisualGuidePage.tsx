@@ -596,7 +596,6 @@ type Density = 'compact' | 'normal' | 'large';
 
 interface CardProps {
   product: EditableProduct;
-  hidePrices: boolean;
   hovered: boolean;
   density: Density;
   onHover: () => void;
@@ -608,7 +607,6 @@ interface ModalProps {
   product: EditableProduct;
   onClose: () => void;
   onSelectProduct: (p: EditableProduct) => void;
-  hidePrices: boolean;
   allProducts: EditableProduct[];
 }
 
@@ -629,7 +627,7 @@ const densityOptions: { key: Density; icon: LucideIcon; label: string }[] = [
 // Main page component
 // ══════════════════════════════════════════════════════════════════════════════
 export default function VisualGuidePage() {
-  const { products, hidePrices } = useStaff();
+  const { products } = useStaff();
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [selected, setSelected] = useState<EditableProduct | null>(null);
@@ -795,7 +793,7 @@ export default function VisualGuidePage() {
               <ComponentCard
                 key={p.id}
                 product={p}
-                hidePrices={hidePrices}
+
                 density={density}
                 hovered={hoveredId === p.id}
                 onHover={() => setHoveredId(p.id)}
@@ -818,7 +816,7 @@ export default function VisualGuidePage() {
                   <ComponentCard
                     key={p.id}
                     product={p}
-                    hidePrices={hidePrices}
+    
                     density={density}
                     hovered={hoveredId === p.id}
                     onHover={() => setHoveredId(p.id)}
@@ -838,7 +836,6 @@ export default function VisualGuidePage() {
           product={selected}
           onClose={() => setSelected(null)}
           onSelectProduct={setSelected}
-          hidePrices={hidePrices}
           allProducts={products}
         />
       )}
@@ -849,7 +846,7 @@ export default function VisualGuidePage() {
 // ══════════════════════════════════════════════════════════════════════════════
 // ComponentCard
 // ══════════════════════════════════════════════════════════════════════════════
-function ComponentCard({ product, hidePrices, hovered, density, onHover, onLeave, onClick }: CardProps) {
+function ComponentCard({ product, hovered, density, onHover, onLeave, onClick }: CardProps) {
   const [imgError, setImgError] = useState(false);
   const IconComponent = (iconMap[product.icon] ?? CpuIcon) as LucideIcon;
   const tip = getTip(product);
@@ -907,11 +904,6 @@ function ComponentCard({ product, hidePrices, hovered, density, onHover, onLeave
         {showPackage && (
           <p className="text-[10px] text-[var(--text-muted)] mt-1 truncate">{tip.package}</p>
         )}
-        {!hidePrices && (
-          <p className={`font-extrabold text-[var(--teal)] mt-1.5 ${density === 'compact' ? 'text-xs' : 'text-sm'}`}>
-            KSh {product.price.toLocaleString()}
-          </p>
-        )}
       </div>
     </button>
   );
@@ -920,7 +912,7 @@ function ComponentCard({ product, hidePrices, hovered, density, onHover, onLeave
 // ══════════════════════════════════════════════════════════════════════════════
 // ComponentModal — educational identification panel
 // ══════════════════════════════════════════════════════════════════════════════
-function ComponentModal({ product, onClose, onSelectProduct, hidePrices, allProducts }: ModalProps) {
+function ComponentModal({ product, onClose, onSelectProduct, allProducts }: ModalProps) {
   const { addToCart } = useCart();
   const [lightbox, setLightbox] = useState(false);
   const [modalImgError, setModalImgError] = useState(false);
@@ -1056,20 +1048,8 @@ function ComponentModal({ product, onClose, onSelectProduct, hidePrices, allProd
                   </div>
                 </div>
 
-                {/* Price + action buttons */}
+                {/* Action buttons */}
                 <div className="pt-3 border-t border-[var(--medium-gray)]">
-                  {!hidePrices && (
-                    <div className="flex items-baseline gap-2 mb-3">
-                      <span className="text-2xl font-extrabold text-[var(--teal)]">
-                        KSh {product.price.toLocaleString()}
-                      </span>
-                      {product.oldPrice && (
-                        <span className="text-sm text-[var(--text-muted)] line-through">
-                          KSh {product.oldPrice.toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={() => {

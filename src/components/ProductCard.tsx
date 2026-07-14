@@ -41,7 +41,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, viewMode = 'grid', innerRef, highlighted }: ProductCardProps) {
   const { addToCart } = useCart();
-  const { isStaff, deleteProduct, hidePrices } = useStaff();
+  const { isStaff, deleteProduct } = useStaff();
   const [showEdit, setShowEdit] = useState(false);
   const [showQuickView, setShowQuickView] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -106,20 +106,12 @@ export default function ProductCard({ product, viewMode = 'grid', innerRef, high
             )}
           </div>
 
-          {/* Price + Add */}
+          {/* Add */}
           <div className="shrink-0 flex flex-col items-end gap-2 pr-4 py-3">
             {product.badge && (
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.badge === 'sale' ? 'bg-[var(--amber)] text-white' : 'bg-[var(--teal)] text-white'}`}>
                 {product.badge === 'sale' ? 'SALE' : 'TOP'}
               </span>
-            )}
-            {!hidePrices && (
-              <div className="text-right">
-                <span className="text-base font-extrabold text-[var(--teal)] block">KSh {product.price.toLocaleString()}</span>
-                {product.oldPrice && (
-                  <span className="text-xs text-[var(--text-muted)] line-through">KSh {product.oldPrice.toLocaleString()}</span>
-                )}
-              </div>
             )}
             <button
               onClick={handleAdd}
@@ -203,17 +195,7 @@ export default function ProductCard({ product, viewMode = 'grid', innerRef, high
             <p className="text-[11px] text-orange-500 font-medium mb-2">Only {product.stock} left in stock</p>
           )}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              {!hidePrices && (
-                <>
-                  <span className="text-lg font-extrabold text-[var(--teal)]">KSh {product.price.toLocaleString()}</span>
-                  {product.oldPrice && (
-                    <span className="text-sm text-[var(--text-muted)] line-through">KSh {product.oldPrice.toLocaleString()}</span>
-                  )}
-                </>
-              )}
-            </div>
+          <div className="flex items-center justify-end">
             <button
               onClick={handleAdd}
               className="w-10 h-10 rounded-xl bg-[var(--teal-light)] border border-[var(--teal)]/20 text-[var(--teal)] flex items-center justify-center hover:bg-[var(--teal)] hover:text-white transition-all shrink-0"

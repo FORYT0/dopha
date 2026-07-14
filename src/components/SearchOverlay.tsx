@@ -9,7 +9,7 @@ interface SearchOverlayProps {
 }
 
 export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
-  const { products, hidePrices } = useStaff();
+  const { products } = useStaff();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<typeof products>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -114,13 +114,6 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   <p className="text-sm font-semibold text-[var(--charcoal)] truncate">{product.name}</p>
                   <p className="text-xs text-[var(--text-muted)] truncate">{product.subcategory || product.category}</p>
                 </div>
-
-                {/* Price */}
-                {!hidePrices && (
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-[var(--teal)]">KSh {product.price.toLocaleString()}</p>
-                  </div>
-                )}
 
                 <ArrowRight size={14} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               </button>

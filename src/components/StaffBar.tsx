@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, LogOut, Plus, RotateCcw, EyeOff, Eye, Save, Check, Loader2, MessageSquare } from 'lucide-react';
+import { ShieldCheck, LogOut, Plus, RotateCcw, Save, Check, Loader2, MessageSquare } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useStaff } from '../context/StaffContext';
@@ -7,11 +7,10 @@ import AddProductModal from './AddProductModal';
 import StaffChat from './StaffChat';
 
 export default function StaffBar() {
-  const { logout, resetProducts, hidePrices, toggleHidePrices, isDirty, isSaving, saveAll } = useStaff();
+  const { logout, resetProducts, isDirty, isSaving, saveAll } = useStaff();
   const [showAdd,            setShowAdd]            = useState(false);
   const [showConfirmReset,   setShowConfirmReset]   = useState(false);
   const [justSaved,          setJustSaved]          = useState(false);
-  const [pricesJustSaved,    setPricesJustSaved]    = useState(false);
   const [showChat,           setShowChat]           = useState(false);
   const [chatUnread,         setChatUnread]         = useState(0);
 
@@ -97,31 +96,6 @@ export default function StaffBar() {
                 <><Check size={12} /> Saved!</>
               ) : (
                 <><Save size={12} /><span className="hidden sm:inline">Save</span></>
-              )}
-            </button>
-
-            {/* Hide Prices — saves to Firestore immediately, no extra Save click needed */}
-            <button
-              onClick={() => {
-                toggleHidePrices();
-                setPricesJustSaved(true);
-                setTimeout(() => setPricesJustSaved(false), 2000);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors border ${
-                pricesJustSaved
-                  ? 'bg-green-600 text-white border-green-600'
-                  : hidePrices
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
-                  : 'border-white/20 hover:bg-white/10 text-white/70 hover:text-white'
-              }`}
-              title={hidePrices ? 'Prices hidden — click to show' : 'Hide all prices'}
-            >
-              {pricesJustSaved ? (
-                <><Check size={12} /><span className="hidden sm:inline">Saved!</span></>
-              ) : hidePrices ? (
-                <><EyeOff size={12} /><span className="hidden sm:inline">Prices Hidden</span></>
-              ) : (
-                <><Eye size={12} /><span className="hidden sm:inline">Hide Prices</span></>
               )}
             </button>
 

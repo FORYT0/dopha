@@ -21,7 +21,6 @@ function useRelated(product: EditableProduct, all: EditableProduct[]) {
 // Mini card for related product
 function RelatedCard({ product, onSelect }: { product: EditableProduct; onSelect: () => void }) {
   const { addToCart } = useCart();
-  const { hidePrices } = useStaff();
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-[var(--medium-gray)] hover:border-[var(--teal)] transition-colors group">
@@ -39,7 +38,6 @@ function RelatedCard({ product, onSelect }: { product: EditableProduct; onSelect
       {/* Info */}
       <div className="flex-1 min-w-0 cursor-pointer" onClick={onSelect}>
         <p className="text-xs font-semibold text-[var(--charcoal)] line-clamp-2 leading-snug">{product.name}</p>
-        {!hidePrices && <p className="text-xs text-[var(--teal)] font-bold mt-0.5">KSh {product.price.toLocaleString()}</p>}
       </div>
       {/* Add button */}
       <button
@@ -55,7 +53,7 @@ function RelatedCard({ product, onSelect }: { product: EditableProduct; onSelect
 
 export default function ProductQuickView({ product, onClose }: Props) {
   const { addToCart } = useCart();
-  const { products, hidePrices } = useStaff();
+  const { products } = useStaff();
   const related = useRelated(product, products);
 
   // Lock body scroll
@@ -130,23 +128,6 @@ export default function ProductQuickView({ product, onClose }: Props) {
           {product.stock <= 10 && (
             <div className="flex items-center gap-1.5 text-orange-500 text-xs font-medium mb-3">
               <Package size={13} /> Only {product.stock} left in stock
-            </div>
-          )}
-
-          {/* Price + CTA */}
-          {!hidePrices && (
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-[var(--teal)]">KSh {product.price.toLocaleString()}</span>
-                {product.oldPrice && (
-                  <span className="text-sm text-[var(--text-muted)] line-through">KSh {product.oldPrice.toLocaleString()}</span>
-                )}
-              </div>
-              {product.oldPrice && (
-                <span className="text-xs font-bold text-[var(--amber)] bg-[var(--amber-light)] px-2 py-1 rounded-full">
-                  Save KSh {(product.oldPrice - product.price).toLocaleString()}
-                </span>
-              )}
             </div>
           )}
 

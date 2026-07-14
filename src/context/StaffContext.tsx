@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { products as baseProducts } from '../data/products';
 import type { Product } from '../data/products';
 
@@ -9,11 +7,10 @@ const STAFF_USERNAME  = 'admin';
 const STAFF_PASSWORD  = 'dopha2025';
 
 // ── localStorage keys ────────────────────────────────────────────────────────
-const STORAGE_KEY     = 'dopha_products_v2';
-const SESSION_KEY     = 'dopha_staff_session';
-const FOOTER_KEY      = 'dopha_footer_v1';
-const CONTENT_KEY     = 'dopha_content_v1';
-const HIDE_PRICES_KEY = 'dopha_hide_prices';
+const STORAGE_KEY = 'dopha_products_v2';
+const SESSION_KEY = 'dopha_staff_session';
+const FOOTER_KEY  = 'dopha_footer_v1';
+const CONTENT_KEY = 'dopha_content_v1';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface EditableProduct extends Product { image?: string; }
@@ -63,8 +60,6 @@ interface StaffContextType {
   addProduct:       (product: Omit<EditableProduct, 'id'>) => void;
   deleteProduct:    (id: number) => void;
   resetProducts:    () => void;
-  hidePrices:       boolean;
-  toggleHidePrices: () => void;
   footerData:       FooterData;
   updateFooterData: (updates: Partial<FooterData>) => void;
   resetFooterData:  () => void;
@@ -136,9 +131,6 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
   const [products,    setProducts]    = useState<EditableProduct[]>(loadProductsLocal);
   const [footerData,  setFooterData]  = useState<FooterData>(loadFooterLocal);
   const [siteContent, setSiteContent] = useState<SiteContent>(loadContentLocal);
-  // Seed from localStorage so the UI doesn't flash on first render;
-  // the Firestore onSnapshot below overwrites it immediately.
-  const [hidePrices,  setHidePrices]  = useState(() => localStorage.getItem(HIDE_PRICES_KEY) === 'true');
   const [isDirty,     setIsDirty]     = useState(false);
   const [isSaving,    setIsSaving]    = useState(false);
 
@@ -150,29 +142,6 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { productsRef.current = products;    }, [products]);
   useEffect(() => { footerRef.current   = footerData;  }, [footerData]);
   useEffect(() => { contentRef.current  = siteContent; }, [siteContent]);
-
-  // ── hidePrices — live sync via Firestore so all browsers/devices stay in sync ──
-  useEffect(() => {
-    const settingsRef = doc(db, 'settings', 'store');
-    // Read once first (handles cold start where doc may not exist yet)
-    getDoc(settingsRef).then(snap => {
-      if (snap.exists()) {
-        const hp = Boolean(snap.data().hidePrices);
-        setHidePrices(hp);
-        try { localStorage.setItem(HIDE_PRICES_KEY, String(hp)); } catch {}
-      }
-    }).catch(() => {});
-
-    // Subscribe to real-time changes so every tab/device/browser stays in sync
-    const unsub = onSnapshot(settingsRef, snap => {
-      if (!snap.exists()) return;
-      const hp = Boolean(snap.data().hidePrices);
-      setHidePrices(hp);
-      try { localStorage.setItem(HIDE_PRICES_KEY, String(hp)); } catch {}
-    }, () => {}); // ignore permission errors silently
-
-    return () => unsub();
-  }, []);
 
   // ── On mount: pull published data from Blob, merge over localStorage ──────
   useEffect(() => {
@@ -277,15 +246,6 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
     commitProducts(baseProducts as EditableProduct[]);
   }, [commitProducts]);
 
-  // ── Hide Prices — write to Firestore; onSnapshot propagates everywhere ──────
-  const toggleHidePrices = useCallback(() => {
-    const next = !hidePrices;
-    // Apply immediately — no await needed; onSnapshot confirms on all browsers
-    setHidePrices(next);
-    try { localStorage.setItem(HIDE_PRICES_KEY, String(next)); } catch {}
-    setDoc(doc(db, 'settings', 'store'), { hidePrices: next }, { merge: true }).catch(() => {});
-  }, [hidePrices]);
-
   // ── Footer ────────────────────────────────────────────────────────────────
   const updateFooterData = useCallback((updates: Partial<FooterData>) => {
     commitFooter({ ...footerRef.current, ...updates });
@@ -308,7 +268,6 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
     <StaffContext.Provider value={{
       isStaff, login, logout,
       products, updateProduct, addProduct, deleteProduct, resetProducts,
-      hidePrices, toggleHidePrices,
       footerData, updateFooterData, resetFooterData,
       siteContent, updateContent, resetContent,
       isDirty, isSaving, saveAll,

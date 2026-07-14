@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Plus, Minus, ShoppingBasket, Send, RefreshCw, MessageSquare } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { useStaff } from '../context/StaffContext';
 import { useChatContext, normalizePhone, genSessionId, saveIdentity } from '../context/ChatContext';
 
 // ── Inline identity form ─────────────────────────────────────────────────────
@@ -76,8 +75,7 @@ function QuoteForm({ onSubmit, onCancel, busy }: QuoteFormProps) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function CartSidebar() {
-  const { cart, isOpen, setIsOpen, totalPrice, removeFromCart, updateQty, clearCart, showToast } = useCart();
-  const { hidePrices } = useStaff();
+  const { cart, isOpen, setIsOpen, removeFromCart, updateQty, clearCart, showToast } = useCart();
   const { hasIdentity, identify, sendOrder } = useChatContext();
 
   const [showForm, setShowForm]   = useState(false);
@@ -125,17 +123,6 @@ export default function CartSidebar() {
     }
   };
 
-  // ── Regular checkout (prices visible) ────────────────────────────────────
-  const handleCheckout = () => {
-    if (cart.length === 0) {
-      showToast('Your cart is empty!');
-    } else {
-      const items = cart.map(c => `${c.name} x${c.qty}`).join(', ');
-      const msg = `Hi! I want to order: ${items}. Total: KSh ${totalPrice.toLocaleString()}`;
-      window.open(`https://wa.me/254712743428?text=${encodeURIComponent(msg)}`, '_blank');
-    }
-  };
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
@@ -179,10 +166,6 @@ export default function CartSidebar() {
                 )}
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-[var(--charcoal)] truncate">{item.name}</h4>
-                  {/* Hide price when staff has toggled hidePrices */}
-                  {!hidePrices && (
-                    <p className="text-sm font-bold text-[var(--teal)]">KSh {item.price.toLocaleString()}</p>
-                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded bg-white border border-[var(--medium-gray)] flex items-center justify-center hover:border-[var(--teal)] transition-colors">
                       <Minus size={12} />
@@ -201,16 +184,8 @@ export default function CartSidebar() {
 
         {/* Footer */}
         <div className="border-t border-[var(--medium-gray)] p-5 flex flex-col gap-3">
-          {/* Total — hidden when prices are hidden */}
-          {!hidePrices && (
-            <div className="flex justify-between items-center">
-              <span className="text-base font-medium">Total</span>
-              <span className="text-xl font-extrabold text-[var(--teal)]">KSh {totalPrice.toLocaleString()}</span>
-            </div>
-          )}
-
           {/* Inline quote form */}
-          {hidePrices && showForm && (
+          {showForm && (
             <QuoteForm
               busy={sending}
               onCancel={() => setShowForm(false)}
@@ -219,30 +194,20 @@ export default function CartSidebar() {
           )}
 
           {/* CTA button */}
-          {hidePrices ? (
-            !showForm && (
-              <button
-                onClick={handleQuoteClick}
-                disabled={sending}
-                className="w-full py-3.5 bg-[var(--teal)] hover:bg-[var(--teal-dark)] text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {sending
-                  ? <><RefreshCw size={16} className="animate-spin" /> Sending…</>
-                  : <><MessageSquare size={16} /> Request a Quote</>
-                }
-              </button>
-            )
-          ) : (
+          {!showForm && (
             <button
-              onClick={handleCheckout}
-              className="w-full py-3.5 bg-[var(--teal)] hover:bg-[var(--teal-dark)] text-white font-bold rounded-xl transition-colors"
+              onClick={handleQuoteClick}
+              disabled={sending}
+              className="w-full py-3.5 bg-[var(--teal)] hover:bg-[var(--teal-dark)] text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Proceed to Checkout
+              {sending
+                ? <><RefreshCw size={16} className="animate-spin" /> Sending…</>
+                : <><MessageSquare size={16} /> Request a Quote</>
+              }
             </button>
           )}
 
-          {/* Hint when prices are hidden */}
-          {hidePrices && !showForm && !sending && (
+          {!showForm && !sending && (
             <p className="text-[11px] text-center text-gray-400">
               Our team will reply with item prices in the chat
             </p>

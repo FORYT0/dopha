@@ -708,11 +708,6 @@ function ProjectDetailModal({ project, onClose }: { project: ProjectGuide; onClo
     if (comp) handleAddComponent(comp);
   };
 
-  const totalCost = project.components.reduce((sum, comp) => {
-    const p = products.find(pr => pr.id === comp.productId);
-    return sum + (p ? p.price * comp.quantity : 0);
-  }, 0);
-
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -758,7 +753,6 @@ function ProjectDetailModal({ project, onClose }: { project: ProjectGuide; onClo
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
                 <h3 className="text-base font-bold text-[var(--charcoal)]">Required Components</h3>
-                <p className="text-sm text-[var(--text-muted)]">Estimated total: <span className="font-semibold text-[var(--teal)]">KSh {totalCost.toLocaleString()}</span></p>
               </div>
               <button
                 onClick={handleAddAll}
@@ -768,9 +762,7 @@ function ProjectDetailModal({ project, onClose }: { project: ProjectGuide; onClo
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {project.components.map(comp => {
-                const product = products.find(p => p.id === comp.productId);
-                return (
+              {project.components.map(comp => (
                   <button
                     key={comp.productId}
                     onClick={() => handleAddComponent(comp)}
@@ -784,16 +776,9 @@ function ProjectDetailModal({ project, onClose }: { project: ProjectGuide; onClo
                         {comp.label}
                         {comp.quantity > 1 && <span className="text-[var(--text-muted)] font-normal"> ×{comp.quantity}</span>}
                       </p>
-                      {product && (
-                        <p className="text-xs text-[var(--teal)] font-medium">
-                          KSh {product.price.toLocaleString()}
-                          {comp.quantity > 1 && ` × ${comp.quantity} = KSh ${(product.price * comp.quantity).toLocaleString()}`}
-                        </p>
-                      )}
                     </div>
                   </button>
-                );
-              })}
+              ))}
             </div>
           </div>
 
