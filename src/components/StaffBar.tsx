@@ -8,11 +8,13 @@ import StaffChat from './StaffChat';
 
 export default function StaffBar() {
   const { logout, resetProducts, hidePrices, toggleHidePrices, isDirty, isSaving, saveAll } = useStaff();
-  const [showAdd,          setShowAdd]          = useState(false);
-  const [showConfirmReset, setShowConfirmReset] = useState(false);
-  const [justSaved,        setJustSaved]        = useState(false);
-  const [showChat,         setShowChat]         = useState(false);
-  const [chatUnread,       setChatUnread]       = useState(0);
+  const [showAdd,            setShowAdd]            = useState(false);
+  const [showConfirmReset,   setShowConfirmReset]   = useState(false);
+  const [justSaved,          setJustSaved]          = useState(false);
+  const [pricesSaving,       setPricesSaving]       = useState(false);
+  const [pricesJustSaved,    setPricesJustSaved]    = useState(false);
+  const [showChat,           setShowChat]           = useState(false);
+  const [chatUnread,         setChatUnread]         = useState(0);
 
   // Real-time unread count from Firestore
   useEffect(() => {
@@ -99,18 +101,35 @@ export default function StaffBar() {
               )}
             </button>
 
-            {/* Hide Prices */}
+            {/* Hide Prices — saves to Firestore immediately, no extra Save click needed */}
             <button
-              onClick={toggleHidePrices}
+              onClick={async () => {
+                setPricesSaving(true);
+                setPricesJustSaved(false);
+                await toggleHidePrices();
+                setPricesSaving(false);
+                setPricesJustSaved(true);
+                setTimeout(() => setPricesJustSaved(false), 2000);
+              }}
+              disabled={pricesSaving}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors border ${
-                hidePrices
+                pricesJustSaved
+                  ? 'bg-green-600 text-white border-green-600'
+                  : hidePrices
                   ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
                   : 'border-white/20 hover:bg-white/10 text-white/70 hover:text-white'
               }`}
               title={hidePrices ? 'Prices hidden — click to show' : 'Hide all prices'}
             >
-              {hidePrices ? <EyeOff size={12} /> : <Eye size={12} />}
-              <span className="hidden sm:inline">{hidePrices ? 'Prices Hidden' : 'Hide Prices'}</span>
+              {pricesSaving ? (
+                <><Loader2 size={12} className="animate-spin" /><span className="hidden sm:inline">Saving…</span></>
+              ) : pricesJustSaved ? (
+                <><Check size={12} /><span className="hidden sm:inline">Saved!</span></>
+              ) : hidePrices ? (
+                <><EyeOff size={12} /><span className="hidden sm:inline">Prices Hidden</span></>
+              ) : (
+                <><Eye size={12} /><span className="hidden sm:inline">Hide Prices</span></>
+              )}
             </button>
 
             {/* Reset */}

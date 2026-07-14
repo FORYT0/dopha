@@ -161,4 +161,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    setI
+    setIsOpen(true); // open the chat widget
+    return orderRef;
+  }, [sessionId, customerName, customerPhone]);
+
+  return (
+    <ChatContext.Provider value={{
+      sessionId, customerName, customerPhone, hasIdentity,
+      identify, isOpen, setIsOpen, sendOrder,
+    }}>
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+export function useChatContext() {
+  const ctx = useContext(ChatContext);
+  if (!ctx) throw new Error('useChatContext must be used within ChatProvider');
+  return ctx;
+}

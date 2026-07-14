@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 export interface CartItem {
   id: number;
@@ -23,12 +23,27 @@ interface CartContextType {
   showToast: (message: string) => void;
 }
 
+const CART_KEY = 'dopha_cart_v1';
+
+function loadCart(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_KEY);
+    if (raw) return JSON.parse(raw) as CartItem[];
+  } catch {}
+  return [];
+}
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(loadCart);
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState({ message: '', visible: false });
+
+  // Persist cart to localStorage whenever it changes
+  useEffect(() => {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {}
+  }, [cart]);
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
